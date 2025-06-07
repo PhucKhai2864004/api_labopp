@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\LabAssistantOPP_LAO\LabAssistantOPP_LAO.Models\LabAssistantOPP_LAO.Models.csproj" />
+    <ProjectReference Include="..\LabAssistantOPP_LAO.Models\LabAssistantOPP_LAO.Models.csproj" />
   </ItemGroup>
 
 </Project>
