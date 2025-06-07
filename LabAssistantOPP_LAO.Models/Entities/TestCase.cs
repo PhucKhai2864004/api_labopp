@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace LabAssistantOPP_LAO.DTO.Models;
+namespace LabAssistantOPP_LAO.Models.Entities;
+
 public partial class TestCase
 {
     public string Id { get; set; } = null!;
