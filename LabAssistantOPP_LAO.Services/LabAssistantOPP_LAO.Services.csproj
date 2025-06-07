@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Business_Logic</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\LabAssistantOPP_LAO\LabAssistantOPP_LAO.Models\LabAssistantOPP_LAO.Models.csproj" />
+    <ProjectReference Include="..\LabAssistantOPP_LAO.DTO\LabAssistantOPP_LAO.DTO.csproj" />
+  </ItemGroup>
+
+</Project>

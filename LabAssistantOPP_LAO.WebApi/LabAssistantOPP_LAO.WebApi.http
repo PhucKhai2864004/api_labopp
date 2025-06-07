@@ -1,0 +1,6 @@
+@LabAssistantOPP_LAO.WebApi_HostAddress = http://localhost:5111
+
+GET {{LabAssistantOPP_LAO.WebApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
