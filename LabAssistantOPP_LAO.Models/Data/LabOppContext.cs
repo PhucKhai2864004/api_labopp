@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using LabAssistantOPP_LAO.Models.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace LabAssistantOPP_LAO.DTO.Models;
+namespace LabAssistantOPP_LAO.Models.Data;
 
 public partial class LabOppContext : DbContext
 {
