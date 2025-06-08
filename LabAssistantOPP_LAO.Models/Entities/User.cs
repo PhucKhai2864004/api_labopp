@@ -11,7 +11,9 @@ public partial class User
 
     public string Email { get; set; } = null!;
 
-    public string RoleId { get; set; } = null!;
+	public string PasswordHash { get; set; }
+
+	public string RoleId { get; set; } = null!;
 
     public bool IsActive { get; set; }
 
