@@ -43,6 +43,7 @@ namespace Business_Logic.Services
 			{
 				UserId = user.Id,
 				Email = user.Email,
+				Role = user.Role?.Name,
 				Token = GenerateJwt(user)
 			};
 		}
@@ -53,13 +54,16 @@ namespace Business_Logic.Services
 			var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"]));
 			var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+			if (user.Role == null)
+				throw new Exception("User does not have a role assigned.");
+
 			var claims = new[]
 			{
-			new Claim(JwtRegisteredClaimNames.Sub, user.Id),
-			new Claim(JwtRegisteredClaimNames.Email, user.Email),
-			new Claim(ClaimTypes.Role, user.Role?.Name ?? "Student"),
-			new Claim("userId", user.Id)
-		};
+		new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+		new Claim(JwtRegisteredClaimNames.Email, user.Email),
+		new Claim(ClaimTypes.Role, user.Role.Name), // ✅ dùng role từ DB
+        new Claim("userId", user.Id)
+	};
 
 			var token = new JwtSecurityToken(
 				issuer: jwtSettings["Issuer"],
