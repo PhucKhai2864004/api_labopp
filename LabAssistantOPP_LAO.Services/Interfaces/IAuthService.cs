@@ -9,7 +9,7 @@ namespace Business_Logic.Interfaces
 {
 	public interface IAuthService
 	{
-		Task<AuthResponse> RegisterAsync(RegisterRequest request);
-		Task<AuthResponse> LoginAsync(LoginRequest request);
+		Task<AuthResponse> LoginWithGoogleAsync(GoogleLoginRequest request);
+		// Other authentication methods can be added here
 	}
 }

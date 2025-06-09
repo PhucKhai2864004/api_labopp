@@ -6,9 +6,8 @@ using System.Threading.Tasks;
 
 namespace LabAssistantOPP_LAO.DTO.DTOs
 {
-	public class LoginRequest
+	public class GoogleLoginRequest
 	{
-		public string Email { get; set; }
-		public string Password { get; set; }
+		public string IdToken { get; set; }
 	}
 }

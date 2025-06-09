@@ -1,61 +1,43 @@
-﻿using LabAssistantOPP_LAO.DTO.DTOs;
+﻿using Business_Logic.Interfaces;
+using Google.Apis.Auth;
+using LabAssistantOPP_LAO.DTO.DTOs;
 using LabAssistantOPP_LAO.Models.Data;
 using LabAssistantOPP_LAO.Models.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Business_Logic.Services
 {
-	public class AuthService
+	public class AuthService : IAuthService
 	{
-		private readonly LabOppContext _context;
 		private readonly IConfiguration _config;
+		private readonly LabOppContext _context;
 
-		public AuthService(LabOppContext context, IConfiguration config)
+		public AuthService(IConfiguration config, LabOppContext context)
 		{
-			_context = context;
 			_config = config;
+			_context = context;
 		}
 
-		public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
+		public async Task<AuthResponse> LoginWithGoogleAsync(GoogleLoginRequest request)
 		{
-			if (_context.Users.Any(u => u.Email == request.Email))
-				throw new Exception("Email already exists");
-
-			var user = new User
+			var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, new GoogleJsonWebSignature.ValidationSettings
 			{
-				Id = Guid.NewGuid().ToString(),
-				Name = request.Name,
-				Email = request.Email,
-				PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-				RoleId = request.RoleId,
-				IsActive = true
-			};
+				Audience = new[] { _config["GoogleAuth:ClientId"] }
+			});
 
-			_context.Users.Add(user);
-			await _context.SaveChangesAsync();
+			var user = _context.Users.Include(u => u.Role).FirstOrDefault(u => u.Email == payload.Email);
 
-			return new AuthResponse
-			{
-				UserId = user.Id,
-				Email = user.Email,
-				Token = GenerateJwt(user)
-			};
-		}
-
-		public async Task<AuthResponse> LoginAsync(LoginRequest request)
-		{
-			var user = await _context.Users
-				.Include(u => u.Role)
-				.FirstOrDefaultAsync(u => u.Email == request.Email);
-
-			if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-				throw new Exception("Invalid credentials");
+			if (user == null || !user.IsActive)
+				throw new UnauthorizedAccessException("User not found or inactive");
 
 			return new AuthResponse
 			{
@@ -67,8 +49,27 @@ namespace Business_Logic.Services
 
 		private string GenerateJwt(User user)
 		{
-			// Đơn giản hóa - bạn có thể yêu cầu tôi viết JWT thực tế nếu muốn
-			return "dummy-jwt-token";
+			var jwtSettings = _config.GetSection("JwtSettings");
+			var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"]));
+			var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+			var claims = new[]
+			{
+			new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+			new Claim(JwtRegisteredClaimNames.Email, user.Email),
+			new Claim(ClaimTypes.Role, user.Role?.Name ?? "Student"),
+			new Claim("userId", user.Id)
+		};
+
+			var token = new JwtSecurityToken(
+				issuer: jwtSettings["Issuer"],
+				audience: jwtSettings["Audience"],
+				claims: claims,
+				expires: DateTime.UtcNow.AddMinutes(int.Parse(jwtSettings["ExpireMinutes"])),
+				signingCredentials: creds
+			);
+
+			return new JwtSecurityTokenHandler().WriteToken(token);
 		}
 	}
 }
