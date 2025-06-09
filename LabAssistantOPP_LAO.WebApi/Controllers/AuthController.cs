@@ -9,24 +9,23 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers
 	public class AuthController : ControllerBase
 	{
 		private readonly IAuthService _authService;
-
 		public AuthController(IAuthService authService)
 		{
 			_authService = authService;
 		}
 
-		[HttpPost("register")]
-		public async Task<IActionResult> Register([FromForm] RegisterRequest request)
+		[HttpPost("google-login")]
+		public async Task<IActionResult> GoogleLogin(GoogleLoginRequest request)
 		{
-			var result = await _authService.RegisterAsync(request);
-			return Ok(result);
-		}
-
-		[HttpPost("login")]
-		public async Task<IActionResult> Login([FromForm] LoginRequest request)
-		{
-			var result = await _authService.LoginAsync(request);
-			return Ok(result);
+			try
+			{
+				var result = await _authService.LoginWithGoogleAsync(request);
+				return Ok(result);
+			}
+			catch (Exception ex)
+			{
+				return Unauthorized(new { error = ex.Message });
+			}
 		}
 	}
 }
