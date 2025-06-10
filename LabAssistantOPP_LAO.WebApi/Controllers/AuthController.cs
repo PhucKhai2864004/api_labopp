@@ -1,5 +1,6 @@
 ﻿using Business_Logic.Interfaces;
 using LabAssistantOPP_LAO.DTO.DTOs;
+using LabAssistantOPP_LAO.Models.Common;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LabAssistantOPP_LAO.WebApi.Controllers
@@ -15,16 +16,16 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers
 		}
 
 		[HttpPost("google-login")]
-		public async Task<IActionResult> GoogleLogin(GoogleLoginRequest request)
+		public async Task<IActionResult> GoogleLogin([FromForm] GoogleLoginRequest request)
 		{
 			try
 			{
 				var result = await _authService.LoginWithGoogleAsync(request);
-				return Ok(result);
+				return Ok(ApiResponse<AuthResponse>.SuccessResponse(result, "Đăng nhập thành công"));
 			}
 			catch (Exception ex)
 			{
-				return Unauthorized(new { error = ex.Message });
+				return Unauthorized(ApiResponse<string>.ErrorResponse("Đăng nhập thất bại", new List<string> { ex.Message }));
 			}
 		}
 	}

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using LabAssistantOPP_LAO.Models.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LabAssistantOPP_LAO.WebApi.Controllers
@@ -15,12 +16,14 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers
 			var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
 			var userId = User.FindFirst("userId")?.Value;
 
-			return Ok(new
+			var response = ApiResponse<object>.SuccessResponse(new
 			{
 				message = "Bạn đang đăng nhập với vai trò Student",
 				email,
 				userId
 			});
+
+			return Ok(response);
 		}
 
 		// ❌ Test sai role → sẽ nhận 403 Forbidden nếu không phải Student
