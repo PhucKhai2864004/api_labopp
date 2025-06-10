@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace LabAssistantOPP_LAO.WebApi.Controllers
+namespace LabAssistantOPP_LAO.WebApi.Controllers.Admin
 {
 	[Authorize(Roles = "Admin")]
 	[ApiController]
