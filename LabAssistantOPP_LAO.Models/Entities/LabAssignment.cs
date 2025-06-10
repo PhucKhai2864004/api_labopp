@@ -7,7 +7,7 @@ public partial class LabAssignment
 {
     public string Id { get; set; } = null!;
 
-    public string Title { get; set; } = null!;
+    public string? Title { get; set; }
 
     public string? Description { get; set; }
 
@@ -17,7 +17,7 @@ public partial class LabAssignment
 
     public string? CreatedBy { get; set; }
 
-    public DateTime CreatedAt { get; set; }
+    public DateTime? CreatedAt { get; set; }
 
     public string? UpdatedBy { get; set; }
 

@@ -36,7 +36,7 @@ namespace Business_Logic.Services
 
 			var user = _context.Users.Include(u => u.Role).FirstOrDefault(u => u.Email == payload.Email);
 
-			if (user == null || !user.IsActive)
+			if (user == null || user.IsActive != true)
 				throw new UnauthorizedAccessException("User not found or inactive");
 
 			return new AuthResponse

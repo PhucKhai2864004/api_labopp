@@ -13,7 +13,7 @@ public partial class Feedback
 
     public string? Comment { get; set; }
 
-    public DateTime CreatedAt { get; set; }
+    public DateTime? CreatedAt { get; set; }
 
     public string? UpdatedBy { get; set; }
 
