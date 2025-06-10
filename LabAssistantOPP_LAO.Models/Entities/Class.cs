@@ -7,19 +7,23 @@ public partial class Class
 {
     public string Id { get; set; } = null!;
 
-    public string Name { get; set; } = null!;
+    public string? Name { get; set; }
 
-    public string Subject { get; set; } = null!;
+    public string? Subject { get; set; }
 
-    public bool IsActive { get; set; }
+    public int? Semester { get; set; }
+
+    public string? AcademicYear { get; set; }
+
+    public bool? IsActive { get; set; }
 
     public string? TeacherId { get; set; }
 
-    public int LocToPass { get; set; }
+    public int? LocToPass { get; set; }
 
     public string? CreatedBy { get; set; }
 
-    public DateTime CreatedAt { get; set; }
+    public DateTime? CreatedAt { get; set; }
 
     public string? UpdatedBy { get; set; }
 

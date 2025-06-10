@@ -7,17 +7,17 @@ public partial class User
 {
     public string Id { get; set; } = null!;
 
-    public string Name { get; set; } = null!;
+    public string? Name { get; set; }
 
-    public string Email { get; set; } = null!;
+    public string? Email { get; set; }
 
-	public string RoleId { get; set; } = null!;
+    public string? RoleId { get; set; }
 
-    public bool IsActive { get; set; }
+    public bool? IsActive { get; set; }
 
     public string? CreatedBy { get; set; }
 
-    public DateTime CreatedAt { get; set; }
+    public DateTime? CreatedAt { get; set; }
 
     public string? UpdatedBy { get; set; }
 
@@ -27,9 +27,11 @@ public partial class User
 
     public virtual ICollection<Feedback> Feedbacks { get; set; } = new List<Feedback>();
 
+    public virtual ICollection<UploadFile> Files { get; set; } = new List<UploadFile>();
+
     public virtual ICollection<LabAssignment> LabAssignments { get; set; } = new List<LabAssignment>();
 
-    public virtual Role Role { get; set; } = null!;
+    public virtual Role? Role { get; set; }
 
     public virtual ICollection<StudentInClass> StudentInClasses { get; set; } = new List<StudentInClass>();
 

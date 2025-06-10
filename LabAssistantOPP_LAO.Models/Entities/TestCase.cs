@@ -15,7 +15,7 @@ public partial class TestCase
 
     public string? CreatedBy { get; set; }
 
-    public DateTime CreatedAt { get; set; }
+    public DateTime? CreatedAt { get; set; }
 
     public string? UpdatedBy { get; set; }
 

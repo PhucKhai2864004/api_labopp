@@ -11,7 +11,7 @@ public partial class Submission
 
     public string? AssignmentId { get; set; }
 
-    public byte[]? ZipCode { get; set; }
+    public string? ZipCode { get; set; }
 
     public string? Status { get; set; }
 
@@ -19,13 +19,13 @@ public partial class Submission
 
     public int? LocResult { get; set; }
 
-    public bool ManuallyEdited { get; set; }
+    public bool? ManuallyEdited { get; set; }
 
     public string? ManualReason { get; set; }
 
     public string? CreatedBy { get; set; }
 
-    public DateTime CreatedAt { get; set; }
+    public DateTime? CreatedAt { get; set; }
 
     public string? UpdatedBy { get; set; }
 
@@ -38,4 +38,6 @@ public partial class Submission
     public virtual User? Student { get; set; }
 
     public virtual ICollection<TestCaseResult> TestCaseResults { get; set; } = new List<TestCaseResult>();
+
+    public virtual UploadFile? ZipCodeNavigation { get; set; }
 }

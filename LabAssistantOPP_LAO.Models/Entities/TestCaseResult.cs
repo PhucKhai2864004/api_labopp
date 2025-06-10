@@ -13,7 +13,7 @@ public partial class TestCaseResult
 
     public string? ActualOutput { get; set; }
 
-    public bool IsPassed { get; set; }
+    public bool? IsPassed { get; set; }
 
     public virtual Submission? Submission { get; set; }
 
