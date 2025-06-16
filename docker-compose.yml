@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  labapi:
+    build:
+      context: .
+      dockerfile: LabAssistantOPP_LAO.WebApi/Dockerfile
+    ports:
+      - "5111:80"
+    depends_on:
+      - labdb
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DB=Server=labdb;Database=LabOpp;User=sa;Password=Nekopara.2003;Encrypt=False;TrustServerCertificate=True
+
+  labdb:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: lab_sql
+    environment:
+      SA_PASSWORD: "Nekopara.2003"
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+    volumes:
+      - lab_sql_data:/var/opt/mssql
+
+  db-init:
+    image: mcr.microsoft.com/mssql-tools
+    depends_on:
+      - labdb
+    volumes:
+      - ./init_labopp.sql:/init_labopp.sql
+    entrypoint: >
+      /bin/bash -c "
+        sleep 30 &&
+        /opt/mssql-tools/bin/sqlcmd -S labdb -U sa -P Nekopara.2003 -d master -i /init_labopp.sql
+      "
+
+volumes:
+  lab_sql_data:
