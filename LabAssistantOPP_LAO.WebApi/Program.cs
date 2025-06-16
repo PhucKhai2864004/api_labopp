@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Security.Claims;
+using Business_Logic.Interfaces.Teacher;
+using Business_Logic.Services.Teacher;
+using Business_Logic.Interfaces.Admin;
+using Business_Logic.Services.Admin;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,6 +49,13 @@ builder.Services.AddSwaggerGen(c =>
 	});
 });
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ITeacherDashboardService, TeacherDashboardService>();
+builder.Services.AddScoped<ITeacherAssignmentService, TeacherAssignmentService>();
+builder.Services.AddScoped<ITeacherSubmissionService, TeacherSubmissionService>();
+builder.Services.AddScoped<ITeacherStudentService, TeacherStudentService>();
+builder.Services.AddScoped<ITeacherLocService, TeacherLocService>();
+builder.Services.AddScoped<IUserManagementService, UserManagementService>();
+
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["Secret"];
