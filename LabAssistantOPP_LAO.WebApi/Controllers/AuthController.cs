@@ -10,6 +10,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers
 	public class AuthController : ControllerBase
 	{
 		private readonly IAuthService _authService;
+
 		public AuthController(IAuthService authService)
 		{
 			_authService = authService;
@@ -18,15 +19,14 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers
 		[HttpPost("google-login")]
 		public async Task<IActionResult> GoogleLogin([FromForm] GoogleLoginRequest request)
 		{
-			try
+			var result = await _authService.LoginWithGoogleAsync(request);
+
+			if (!result.Success)
 			{
-				var result = await _authService.LoginWithGoogleAsync(request);
-				return Ok(ApiResponse<AuthResponse>.SuccessResponse(result, "Đăng nhập thành công"));
+				return Unauthorized(result); // 401 với message cụ thể như "Tài khoản đã bị khóa"
 			}
-			catch (Exception ex)
-			{
-				return Unauthorized(ApiResponse<string>.ErrorResponse("Đăng nhập thất bại", new List<string> { ex.Message }));
-			}
+
+			return Ok(result); // 200 OK với AuthResponse
 		}
 	}
 }
