@@ -29,11 +29,15 @@ public partial class LabOppContext : DbContext
 
     public virtual DbSet<Role> Roles { get; set; }
 
+    public virtual DbSet<Student> Students { get; set; }
+
     public virtual DbSet<StudentInClass> StudentInClasses { get; set; }
 
     public virtual DbSet<StudentLabAssignment> StudentLabAssignments { get; set; }
 
     public virtual DbSet<Submission> Submissions { get; set; }
+
+    public virtual DbSet<Teacher> Teachers { get; set; }
 
     public virtual DbSet<TestCase> TestCases { get; set; }
 
@@ -52,11 +56,12 @@ public partial class LabOppContext : DbContext
 		}
 	}
 
+
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Class>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Class__3213E83FA67600ED");
+            entity.HasKey(e => e.Id).HasName("PK__Class__3213E83FE7848E5B");
 
             entity.ToTable("Class");
 
@@ -100,12 +105,12 @@ public partial class LabOppContext : DbContext
 
             entity.HasOne(d => d.Teacher).WithMany(p => p.Classes)
                 .HasForeignKey(d => d.TeacherId)
-                .HasConstraintName("FK__Class__teacher_i__412EB0B6");
+                .HasConstraintName("FK__Class__teacher_i__49C3F6B7");
         });
 
         modelBuilder.Entity<ClassHasLabAssignment>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Class_Ha__3213E83F14D99497");
+            entity.HasKey(e => e.Id).HasName("PK__Class_Ha__3213E83FEAF73084");
 
             entity.ToTable("Class_Has_Lab_Assignment");
 
@@ -124,16 +129,16 @@ public partial class LabOppContext : DbContext
 
             entity.HasOne(d => d.Assignment).WithMany(p => p.ClassHasLabAssignments)
                 .HasForeignKey(d => d.AssignmentId)
-                .HasConstraintName("FK__Class_Has__assig__44FF419A");
+                .HasConstraintName("FK__Class_Has__assig__4D94879B");
 
             entity.HasOne(d => d.Class).WithMany(p => p.ClassHasLabAssignments)
                 .HasForeignKey(d => d.ClassId)
-                .HasConstraintName("FK__Class_Has__class__440B1D61");
+                .HasConstraintName("FK__Class_Has__class__4CA06362");
         });
 
         modelBuilder.Entity<Feedback>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Feedback__3213E83FDCC9F743");
+            entity.HasKey(e => e.Id).HasName("PK__Feedback__3213E83FF8AC3682");
 
             entity.ToTable("Feedback");
 
@@ -165,16 +170,16 @@ public partial class LabOppContext : DbContext
 
             entity.HasOne(d => d.Submission).WithMany(p => p.Feedbacks)
                 .HasForeignKey(d => d.SubmissionId)
-                .HasConstraintName("FK__Feedback__submis__5812160E");
+                .HasConstraintName("FK__Feedback__submis__60A75C0F");
 
             entity.HasOne(d => d.Teacher).WithMany(p => p.Feedbacks)
                 .HasForeignKey(d => d.TeacherId)
-                .HasConstraintName("FK__Feedback__teache__59063A47");
+                .HasConstraintName("FK__Feedback__teache__619B8048");
         });
 
         modelBuilder.Entity<UploadFile>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__File__3213E83FE7AD3C0F");
+            entity.HasKey(e => e.Id).HasName("PK__File__3213E83F0C81CAC6");
 
             entity.ToTable("File");
 
@@ -209,12 +214,12 @@ public partial class LabOppContext : DbContext
 
             entity.HasOne(d => d.UploadedByNavigation).WithMany(p => p.Files)
                 .HasForeignKey(d => d.UploadedBy)
-                .HasConstraintName("FK__File__uploaded_b__4F7CD00D");
+                .HasConstraintName("FK__File__uploaded_b__5812160E");
         });
 
         modelBuilder.Entity<LabAssignment>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Lab_Assi__3213E83F50F1442E");
+            entity.HasKey(e => e.Id).HasName("PK__Lab_Assi__3213E83F1D251DD3");
 
             entity.ToTable("Lab_Assignment");
 
@@ -233,6 +238,10 @@ public partial class LabOppContext : DbContext
                 .HasColumnType("text")
                 .HasColumnName("description");
             entity.Property(e => e.LocTotal).HasColumnName("loc_total");
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("status");
             entity.Property(e => e.TeacherId)
                 .HasMaxLength(255)
                 .IsUnicode(false)
@@ -251,12 +260,12 @@ public partial class LabOppContext : DbContext
 
             entity.HasOne(d => d.Teacher).WithMany(p => p.LabAssignments)
                 .HasForeignKey(d => d.TeacherId)
-                .HasConstraintName("FK__Lab_Assig__teach__3D5E1FD2");
+                .HasConstraintName("FK__Lab_Assig__teach__45F365D3");
         });
 
         modelBuilder.Entity<Role>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Role__3213E83F552E757A");
+            entity.HasKey(e => e.Id).HasName("PK__Role__3213E83F52181829");
 
             entity.ToTable("Role");
 
@@ -274,9 +283,48 @@ public partial class LabOppContext : DbContext
                 .HasColumnName("name");
         });
 
+        modelBuilder.Entity<Student>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Student__3213E83F0AC08342");
+
+            entity.ToTable("Student");
+
+            entity.HasIndex(e => e.StudentCode, "UQ__Student__6DF33C4543C7E3E1").IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("id");
+            entity.Property(e => e.Address)
+                .HasColumnType("text")
+                .HasColumnName("address");
+            entity.Property(e => e.DateOfBirth).HasColumnName("date_of_birth");
+            entity.Property(e => e.Gender)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("gender");
+            entity.Property(e => e.Major)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("major");
+            entity.Property(e => e.Phone)
+                .HasMaxLength(50)
+                .IsUnicode(false)
+                .HasColumnName("phone");
+            entity.Property(e => e.StudentCode)
+                .HasMaxLength(50)
+                .IsUnicode(false)
+                .HasColumnName("student_code");
+
+            entity.HasOne(d => d.IdNavigation).WithOne(p => p.Student)
+                .HasForeignKey<Student>(d => d.Id)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__Student__id__3E52440B");
+        });
+
         modelBuilder.Entity<StudentInClass>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Student___3213E83F3A902367");
+            entity.HasKey(e => e.Id).HasName("PK__Student___3213E83F234A8679");
 
             entity.ToTable("Student_In_Class");
 
@@ -295,16 +343,16 @@ public partial class LabOppContext : DbContext
 
             entity.HasOne(d => d.Class).WithMany(p => p.StudentInClasses)
                 .HasForeignKey(d => d.ClassId)
-                .HasConstraintName("FK__Student_I__class__47DBAE45");
+                .HasConstraintName("FK__Student_I__class__5070F446");
 
             entity.HasOne(d => d.Student).WithMany(p => p.StudentInClasses)
                 .HasForeignKey(d => d.StudentId)
-                .HasConstraintName("FK__Student_I__stude__48CFD27E");
+                .HasConstraintName("FK__Student_I__stude__5165187F");
         });
 
         modelBuilder.Entity<StudentLabAssignment>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Student___3213E83FE42B8C59");
+            entity.HasKey(e => e.Id).HasName("PK__Student___3213E83FC99EDFF9");
 
             entity.ToTable("Student_Lab_Assignment");
 
@@ -323,16 +371,16 @@ public partial class LabOppContext : DbContext
 
             entity.HasOne(d => d.Assignment).WithMany(p => p.StudentLabAssignments)
                 .HasForeignKey(d => d.AssignmentId)
-                .HasConstraintName("FK__Student_L__assig__4BAC3F29");
+                .HasConstraintName("FK__Student_L__assig__5441852A");
 
             entity.HasOne(d => d.Student).WithMany(p => p.StudentLabAssignments)
                 .HasForeignKey(d => d.StudentId)
-                .HasConstraintName("FK__Student_L__stude__4CA06362");
+                .HasConstraintName("FK__Student_L__stude__5535A963");
         });
 
         modelBuilder.Entity<Submission>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Submissi__3213E83FFE2E38CC");
+            entity.HasKey(e => e.Id).HasName("PK__Submissi__3213E83FBD06EED7");
 
             entity.ToTable("Submission");
 
@@ -381,20 +429,63 @@ public partial class LabOppContext : DbContext
 
             entity.HasOne(d => d.Assignment).WithMany(p => p.Submissions)
                 .HasForeignKey(d => d.AssignmentId)
-                .HasConstraintName("FK__Submissio__assig__5441852A");
+                .HasConstraintName("FK__Submissio__assig__5CD6CB2B");
 
             entity.HasOne(d => d.Student).WithMany(p => p.Submissions)
                 .HasForeignKey(d => d.StudentId)
-                .HasConstraintName("FK__Submissio__stude__534D60F1");
+                .HasConstraintName("FK__Submissio__stude__5BE2A6F2");
 
             entity.HasOne(d => d.ZipCodeNavigation).WithMany(p => p.Submissions)
                 .HasForeignKey(d => d.ZipCode)
-                .HasConstraintName("FK__Submissio__zip_c__5535A963");
+                .HasConstraintName("FK__Submissio__zip_c__5DCAEF64");
+        });
+
+        modelBuilder.Entity<Teacher>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Teacher__3213E83FDFF4E004");
+
+            entity.ToTable("Teacher");
+
+            entity.HasIndex(e => e.TeacherCode, "UQ__Teacher__90D00E1DCB3AEEB3").IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("id");
+            entity.Property(e => e.AcademicDegree)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("academic_degree");
+            entity.Property(e => e.AcademicTitle)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("academic_title");
+            entity.Property(e => e.Address)
+                .HasColumnType("text")
+                .HasColumnName("address");
+            entity.Property(e => e.DateOfBirth).HasColumnName("date_of_birth");
+            entity.Property(e => e.Gender)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("gender");
+            entity.Property(e => e.Phone)
+                .HasMaxLength(50)
+                .IsUnicode(false)
+                .HasColumnName("phone");
+            entity.Property(e => e.TeacherCode)
+                .HasMaxLength(50)
+                .IsUnicode(false)
+                .HasColumnName("teacher_code");
+
+            entity.HasOne(d => d.IdNavigation).WithOne(p => p.Teacher)
+                .HasForeignKey<Teacher>(d => d.Id)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__Teacher__id__4222D4EF");
         });
 
         modelBuilder.Entity<TestCase>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__TestCase__3213E83FB3B55764");
+            entity.HasKey(e => e.Id).HasName("PK__TestCase__3213E83FC2199192");
 
             entity.ToTable("TestCase");
 
@@ -427,12 +518,12 @@ public partial class LabOppContext : DbContext
 
             entity.HasOne(d => d.Assignment).WithMany(p => p.TestCases)
                 .HasForeignKey(d => d.AssignmentId)
-                .HasConstraintName("FK__TestCase__assign__5BE2A6F2");
+                .HasConstraintName("FK__TestCase__assign__6477ECF3");
         });
 
         modelBuilder.Entity<TestCaseResult>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__TestCase__3213E83FA4D61C17");
+            entity.HasKey(e => e.Id).HasName("PK__TestCase__3213E83FCFF27B6B");
 
             entity.ToTable("TestCaseResult");
 
@@ -455,20 +546,20 @@ public partial class LabOppContext : DbContext
 
             entity.HasOne(d => d.Submission).WithMany(p => p.TestCaseResults)
                 .HasForeignKey(d => d.SubmissionId)
-                .HasConstraintName("FK__TestCaseR__submi__5EBF139D");
+                .HasConstraintName("FK__TestCaseR__submi__6754599E");
 
             entity.HasOne(d => d.TestCase).WithMany(p => p.TestCaseResults)
                 .HasForeignKey(d => d.TestCaseId)
-                .HasConstraintName("FK__TestCaseR__test___5FB337D6");
+                .HasConstraintName("FK__TestCaseR__test___68487DD7");
         });
 
         modelBuilder.Entity<User>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__User__3213E83FC5D9ADF8");
+            entity.HasKey(e => e.Id).HasName("PK__User__3213E83F18AA5A16");
 
             entity.ToTable("User");
 
-            entity.HasIndex(e => e.Email, "UQ__User__AB6E61646CCD7CBD").IsUnique();
+            entity.HasIndex(e => e.Email, "UQ__User__AB6E61648B07809B").IsUnique();
 
             entity.Property(e => e.Id)
                 .HasMaxLength(255)
@@ -490,6 +581,10 @@ public partial class LabOppContext : DbContext
                 .HasMaxLength(255)
                 .IsUnicode(false)
                 .HasColumnName("name");
+            entity.Property(e => e.Password)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("password");
             entity.Property(e => e.RoleId)
                 .HasMaxLength(255)
                 .IsUnicode(false)
@@ -501,6 +596,10 @@ public partial class LabOppContext : DbContext
                 .HasMaxLength(255)
                 .IsUnicode(false)
                 .HasColumnName("updated_by");
+            entity.Property(e => e.UserName)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("user_name");
 
             entity.HasOne(d => d.Role).WithMany(p => p.Users)
                 .HasForeignKey(d => d.RoleId)
