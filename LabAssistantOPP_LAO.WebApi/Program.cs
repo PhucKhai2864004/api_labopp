@@ -57,6 +57,7 @@ builder.Services.AddScoped<ITeacherSubmissionService, TeacherSubmissionService>(
 builder.Services.AddScoped<ITeacherStudentService, TeacherStudentService>();
 builder.Services.AddScoped<ITeacherLocService, TeacherLocService>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
 
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
