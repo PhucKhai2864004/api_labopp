@@ -14,7 +14,6 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Admin
 		public string Phone { get; set; }
 		public string RoleName { get; set; }
 		public string Department { get; set; }
-		public string Code { get; set; } // MSSV / Mã GV
 		public bool IsActive { get; set; }
 		public DateTime? LastActive { get; set; }
 	}
@@ -26,7 +25,6 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Admin
 		public string Phone { get; set; }
 		public string RoleId { get; set; }
 		public string Department { get; set; }
-		public string Code { get; set; }
 	}
 
 	public class UpdateUserRequest : CreateUserRequest

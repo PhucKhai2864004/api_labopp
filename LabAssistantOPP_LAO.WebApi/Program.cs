@@ -14,7 +14,9 @@ using Business_Logic.Services.Admin;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddDbContext<LabOppContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DB")));
+builder.Services.AddDbContext<LabOppContext>(options =>
+	options.UseSqlServer(builder.Configuration.GetConnectionString("DB"),
+		sqlServerOptions => sqlServerOptions.EnableRetryOnFailure()));
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -55,6 +57,7 @@ builder.Services.AddScoped<ITeacherSubmissionService, TeacherSubmissionService>(
 builder.Services.AddScoped<ITeacherStudentService, TeacherStudentService>();
 builder.Services.AddScoped<ITeacherLocService, TeacherLocService>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
 
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -87,8 +90,8 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+	app.UseSwagger();
+	app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
