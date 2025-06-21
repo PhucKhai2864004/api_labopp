@@ -1,4 +1,4 @@
-﻿-- Tạo cơ sở dữ liệu
+-- Tạo cơ sở dữ liệu
 CREATE DATABASE LabOpp;
 GO
 
@@ -17,6 +17,8 @@ CREATE TABLE [User] (
     id VARCHAR(255) PRIMARY KEY,
     name VARCHAR(255),
     email VARCHAR(255) UNIQUE,
+	user_name VARCHAR(255),
+	password VARCHAR(255),
     role_id VARCHAR(255),
     is_active BIT,
     created_by VARCHAR(255),
@@ -26,6 +28,31 @@ CREATE TABLE [User] (
     FOREIGN KEY (role_id) REFERENCES Role(id)
 );
 
+-- Bảng Student
+CREATE TABLE Student (
+    id VARCHAR(255) PRIMARY KEY,
+    student_code VARCHAR(50) UNIQUE NOT NULL,
+    major VARCHAR(255),
+    date_of_birth DATE,
+    phone VARCHAR(50),
+    gender VARCHAR(20),
+    address TEXT,
+    FOREIGN KEY (id) REFERENCES [User](id)
+);
+
+-- Bảng Teacher
+CREATE TABLE Teacher (
+    id VARCHAR(255) PRIMARY KEY,
+    teacher_code VARCHAR(50) UNIQUE NOT NULL,
+    academic_title VARCHAR(255),
+    academic_degree VARCHAR(255),
+    date_of_birth DATE,
+    phone VARCHAR(50),
+    gender VARCHAR(20),
+    address TEXT,
+    FOREIGN KEY (id) REFERENCES [User](id)
+);
+
 -- Bảng Lab_Assignment
 CREATE TABLE Lab_Assignment (
     id VARCHAR(255) PRIMARY KEY,
@@ -33,6 +60,7 @@ CREATE TABLE Lab_Assignment (
     description TEXT,
     teacher_id VARCHAR(255),
     loc_total INT,
+	status VARCHAR(20) CHECK (status IN ('Pending', 'Active', 'Inactive')),
     created_by VARCHAR(255),
     created_at DATETIME,
     updated_by VARCHAR(255),
@@ -160,16 +188,34 @@ INSERT INTO Role (id, name, description) VALUES
 ('role_student', 'Student', 'Student Role'),
 ('role_teacher', 'Teacher', 'Teacher Role');
 
-INSERT INTO [User] (id, name, email, role_id, is_active, created_by, created_at, updated_by, updated_at) VALUES
-('admin', 'Dung', 'dungnthe172310@fpt.edu.vn', 'role_admin', 1, 'admin', GETDATE(), 'admin', GETDATE()),
-('HE172310', N'Nguyễn Tuấn Dũng', 'dung9v3@gmail.com', 'role_student', 1, 'admin', GETDATE(), 'admin', GETDATE()),
-('HE183210', N'Lê Tuấn Quân', 'dung7v3@gmail.com', 'role_teacher', 1, 'admin', GETDATE(), 'admin', GETDATE());
+INSERT INTO [User] (
+    id, name, email, user_name, password, role_id, is_active, created_by, created_at, updated_by, updated_at
+) VALUES
+('admin', 'Dung', 'dungnthe172310@fpt.edu.vn', 'admin1', 'admin1', 'role_admin', 1, 'admin', GETDATE(), 'admin', GETDATE()),
+('HE172310', N'Nguyễn Tuấn Dũng', 'dung9v3@gmail.com', 'dungnthe172310', 'he172310', 'role_student', 1, 'admin', GETDATE(), 'admin', GETDATE()),
+('HE183210', N'Lê Tuấn Quân', 'dung7v3@gmail.com', 'quanlthe183210', 'he183210', 'role_teacher', 1, 'admin', GETDATE(), 'admin', GETDATE());
 
 
-INSERT INTO Lab_Assignment (id, title, description, teacher_id, loc_total, created_by, created_at, updated_by, updated_at) VALUES
-('lab1', 'OOP Basics', 'Learn about classes and objects', 'HE183210', 120, 'HE183210', GETDATE(), 'HE183210', GETDATE()),
-('lab2', 'Inheritance', 'Deep dive into inheritance', 'HE183210', 150, 'HE183210', GETDATE(), 'HE183210', GETDATE()),
-('lab3', 'Polymorphism', 'Understanding polymorphism', 'HE183210', 100, 'HE183210', GETDATE(), 'HE183210', GETDATE());
+INSERT INTO Student (
+    id, student_code, major, date_of_birth, phone, gender, address
+) VALUES (
+    'HE172310', 'SE172310', 'Software Engineering', '2003-01-10', '0912345678', 'Male', N'123 Nguyễn Văn Cừ, Cần Thơ'
+);
+
+INSERT INTO Teacher (
+    id, teacher_code, academic_title, academic_degree, date_of_birth, phone, gender, address
+) VALUES (
+    'HE183210', 'GV001', 'ThS.', 'Master of Computer Science', '1990-06-05', '0987654321', 'Male', N'456 Trần Hưng Đạo, Cần Thơ'
+);
+
+
+INSERT INTO Lab_Assignment (
+    id, title, description, teacher_id, loc_total, status, created_by, created_at, updated_by, updated_at
+) VALUES
+('lab1', 'OOP Basics', 'Learn about classes and objects', 'HE183210', 120, 'Active', 'HE183210', GETDATE(), 'HE183210', GETDATE()),
+('lab2', 'Inheritance', 'Deep dive into inheritance', 'HE183210', 150, 'Active', 'HE183210', GETDATE(), 'HE183210', GETDATE()),
+('lab3', 'Polymorphism', 'Understanding polymorphism', 'HE183210', 100, 'Inactive', 'HE183210', GETDATE(), 'HE183210', GETDATE());
+
 
 INSERT INTO Class (id, name, subject, semester, academic_year, is_active, teacher_id, loc_to_pass, created_by, created_at, updated_by, updated_at) VALUES
 ('SE1732', 'OOP K17', 'OOP', 1, '2021-2022', 1, 'HE183210', 750, 'HE183210', GETDATE(), 'HE183210', GETDATE()),
@@ -226,3 +272,5 @@ INSERT INTO TestCaseResult (id, submission_id, test_case_id, actual_output, is_p
 ('tcr1', 'sub1', 'tc1', 'Hello World', 1),
 ('tcr2', 'sub2', 'tc2', 'Area: 25', 1),
 ('tcr3', 'sub3', 'tc3', 'Wrong Output', 0);
+
+
