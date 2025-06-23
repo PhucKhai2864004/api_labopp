@@ -28,5 +28,20 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers
 
 			return Ok(result); // 200 OK với AuthResponse
 		}
+
+		[HttpPost("login")]
+		public async Task<IActionResult> Login([FromBody] CredentialsLoginRequest request)
+		{
+			try
+			{
+				var result = await _authService.LoginWithCredentialsAsync(request);
+				return Ok(ApiResponse<AuthResponse>.SuccessResponse(result, "Đăng nhập thành công"));
+			}
+			catch (Exception ex)
+			{
+				return Unauthorized(ApiResponse<string>.ErrorResponse("Đăng nhập thất bại", new List<string> { ex.Message }));
+			}
+		}
+
 	}
 }

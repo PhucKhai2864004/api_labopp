@@ -25,11 +25,14 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Admin
 		public string Phone { get; set; }
 		public string RoleId { get; set; }
 		public string Department { get; set; }
+		public string UserName { get; set; }       
+		public string Password { get; set; }
 	}
 
 	public class UpdateUserRequest : CreateUserRequest
 	{
 		public string Id { get; set; }
+		public string? Password { get; set; }
 	}
 
 	public class ChangeUserStatusRequest
@@ -37,5 +40,11 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Admin
 		public string Id { get; set; }
 		public bool IsActive { get; set; }
 		public string Reason { get; set; }
+	}
+
+	public class ChangePasswordRequest
+	{
+		public string UserId { get; set; }
+		public string NewPassword { get; set; }
 	}
 }
