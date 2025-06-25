@@ -53,5 +53,12 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Admin
 			var ok = await _service.ChangeUserStatusAsync(request);
 			return Ok(ApiResponse<string>.SuccessResponse(ok ? "Status updated" : "User not found"));
 		}
+
+		[HttpPost("change-password")]
+		public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+		{
+			var ok = await _service.ChangePasswordAsync(request);
+			return Ok(ApiResponse<string>.SuccessResponse(ok ? "Password changed" : "User not found"));
+		}
 	}
 }

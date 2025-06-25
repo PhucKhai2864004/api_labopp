@@ -60,6 +60,26 @@ namespace Business_Logic.Services
 			return ApiResponse<AuthResponse>.SuccessResponse(response, "Đăng nhập thành công");
 		}
 
+		public async Task<AuthResponse> LoginWithCredentialsAsync(CredentialsLoginRequest request)
+		{
+			var user = await _context.Users.Include(u => u.Role)
+				.FirstOrDefaultAsync(u => u.UserName == request.UserName);
+
+			if (user == null || (bool)!user.IsActive)
+				throw new UnauthorizedAccessException("User not found or inactive");
+
+			if (user.Password != request.Password)
+				throw new UnauthorizedAccessException("Incorrect password");
+
+			return new AuthResponse
+			{
+				UserId = user.Id,
+				Email = user.Email,
+				Role = user.Role?.Name,
+				Token = GenerateJwt(user)
+			};
+		}
+
 
 		private string GenerateJwt(User user)
 		{
