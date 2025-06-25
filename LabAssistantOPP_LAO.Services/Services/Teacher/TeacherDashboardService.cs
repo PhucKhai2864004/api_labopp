@@ -83,5 +83,22 @@ namespace Business_Logic.Services.Teacher
 				RecentSubmissions = recentSubmissions
 			};
 		}
+
+		public async Task<List<ClassDto>> GetManagedClassesAsync(string teacherId)
+		{
+			return await _context.Classes
+				.Where(c => c.TeacherId == teacherId)
+				.Select(c => new ClassDto
+				{
+					Id = c.Id,
+					Name = c.Name,
+					Subject = c.Subject,
+					Semester = (int)c.Semester,
+					AcademicYear = c.AcademicYear,
+					LocToPass = (int)c.LocToPass,
+					IsActive = (bool)c.IsActive
+				})
+				.ToListAsync();
+		}
 	}
 }
