@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LabAssistantOPP_LAO.WebApi.Controllers.Admin
 {
+
     [Route("api/admin/accounts")]
     [ApiController]
     [Authorize(Roles = "Admin")]

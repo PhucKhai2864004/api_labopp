@@ -12,5 +12,6 @@ namespace Business_Logic.Interfaces
 	{
 		Task<ApiResponse<AuthResponse>> LoginWithGoogleAsync(GoogleLoginRequest request);
 		// Other authentication methods can be added here
+		Task<AuthResponse> LoginWithCredentialsAsync(CredentialsLoginRequest request);
 	}
 }

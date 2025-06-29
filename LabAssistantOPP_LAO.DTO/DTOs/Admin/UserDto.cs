@@ -59,6 +59,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Admin
     }
 
 
+
 	public class ChangeUserStatusRequest
 	{
         [Required(ErrorMessage = "User ID is required")]
@@ -66,6 +67,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Admin
 		public bool IsActive { get; set; }
 		public string Reason { get; set; }
 	}
+
 
 
 	public class ChangePasswordRequest
@@ -77,5 +79,6 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Admin
         [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters")]
         public string NewPassword { get; set; }
     }
+
 
 }

@@ -14,6 +14,8 @@ namespace Business_Logic.Interfaces.Admin
 		Task<bool> UpdateUserAsync(UpdateUserRequest request);
 		Task<bool> ChangeUserStatusAsync(ChangeUserStatusRequest request);
 		Task<UserDto?> GetUserByIdAsync(string id);
-        Task<bool> ChangePasswordAsync(ChangePasswordRequest request);
-    }
+
+		Task<bool> ChangePasswordAsync(ChangePasswordRequest request);
+	}
+
 }

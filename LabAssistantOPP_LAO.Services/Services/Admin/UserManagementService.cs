@@ -96,6 +96,8 @@ namespace Business_Logic.Services.Admin
 				Email = request.Email,
 				RoleId = request.RoleId,
 				IsActive = true,
+				UserName = request.UserName,      
+				Password = request.Password,
 				CreatedBy = "admin",
 				CreatedAt = DateTime.UtcNow,
 				UpdatedBy = "admin",
@@ -117,6 +119,11 @@ namespace Business_Logic.Services.Admin
 			//user.RoleId = request.RoleId;
 			user.UpdatedAt = DateTime.UtcNow;
 			user.UpdatedBy = "admin";
+
+			if (!string.IsNullOrWhiteSpace(request.Password))
+			{
+				user.Password = request.Password;  //Dev mode only - no hashing yet
+			}
 
 			await _context.SaveChangesAsync();
 			return true;
@@ -152,18 +159,20 @@ namespace Business_Logic.Services.Admin
 				LastActive = user.UpdatedAt
 			};
 		}
-        public async Task<bool> ChangePasswordAsync(ChangePasswordRequest request)
-        {
-            var user = await _context.Users.FindAsync(request.UserId);
-            if (user == null) return false;
 
-            user.Password = request.NewPassword; //Plain text hiện tại
-            user.UpdatedAt = DateTime.UtcNow;
-            user.UpdatedBy = "admin";
+		public async Task<bool> ChangePasswordAsync(ChangePasswordRequest request)
+		{
+			var user = await _context.Users.FindAsync(request.UserId);
+			if (user == null) return false;
 
-            await _context.SaveChangesAsync();
-            return true;
-        }
+			user.Password = request.NewPassword; //Plain text hiện tại
+			user.UpdatedAt = DateTime.UtcNow;
+			user.UpdatedBy = "admin";
 
-    }
+			await _context.SaveChangesAsync();
+			return true;
+		}
+
+	}
+
 }
