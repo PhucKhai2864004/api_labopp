@@ -29,6 +29,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
                 return Unauthorized(ApiResponse<string>.ErrorResponse("Không xác định được sinh viên"));
             }
 
+
             var assignments = await _context.StudentInClasses
                 .Where(s => s.StudentId == studentId)
                 .Join(
@@ -80,6 +81,15 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
         [HttpPost("submit")]
         public async Task<IActionResult> SubmitAssignment([FromForm] SubmitAssignmentDto model)
         {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+
+                return BadRequest(ApiResponse<string>.ErrorResponse("Dữ liệu không hợp lệ", errors));
+            }
             var studentId = User.FindFirst("userId")?.Value;
             if (string.IsNullOrEmpty(studentId))
             {

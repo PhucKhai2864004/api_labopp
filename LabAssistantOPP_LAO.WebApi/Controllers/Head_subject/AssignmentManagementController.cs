@@ -46,6 +46,8 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
         [HttpPost("add")]
         public async Task<IActionResult> AddAssignment([FromBody] LabAssignmentDto dto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ValidationErrorResponse());
             var newId = Guid.NewGuid().ToString();
 
             // Validate status
@@ -78,6 +80,8 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
         [HttpPut("update/{id}")]
         public async Task<IActionResult> UpdateAssignment(string id, [FromBody] LabAssignmentDto dto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ValidationErrorResponse());
             var assignment = await _context.LabAssignments.FindAsync(id);
             if (assignment == null)
                 return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy đề bài"));
@@ -222,6 +226,15 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
             return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
+        private ApiResponse<string> ValidationErrorResponse()
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+
+            return ApiResponse<string>.ErrorResponse("Dữ liệu không hợp lệ", errors);
+        }
 
 
     }

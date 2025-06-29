@@ -152,6 +152,18 @@ namespace Business_Logic.Services.Admin
 				LastActive = user.UpdatedAt
 			};
 		}
+        public async Task<bool> ChangePasswordAsync(ChangePasswordRequest request)
+        {
+            var user = await _context.Users.FindAsync(request.UserId);
+            if (user == null) return false;
 
-	}
+            user.Password = request.NewPassword; //Plain text hiện tại
+            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedBy = "admin";
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+    }
 }
