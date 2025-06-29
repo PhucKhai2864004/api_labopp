@@ -96,6 +96,13 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
                 return BadRequest(ApiResponse<string>.ErrorResponse("Chỉ được phép nộp file .zip."));
             }
 
+            // Check file size (limit to 10MB)
+            const long maxFileSize = 10 * 1024 * 1024; // 10MB
+            if (model.ZipFile.Length > maxFileSize)
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse("File vượt quá kích thước tối đa là 10MB."));
+            }
+
             // Lấy class_id mà student đang học assignment đó
             var classId = await (from s in _context.StudentInClasses
                                  join cha in _context.ClassHasLabAssignments on s.ClassId equals cha.ClassId

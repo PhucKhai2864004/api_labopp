@@ -47,6 +47,14 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
         public async Task<IActionResult> AddAssignment([FromBody] LabAssignmentDto dto)
         {
             var newId = Guid.NewGuid().ToString();
+
+            // Validate status
+            var validStatuses = new[] { "Pending", "Active", "Inactive" };
+            if (!validStatuses.Contains(dto.Status))
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse("Trạng thái không hợp lệ."));
+            }
+
             var assignment = new LabAssignment
             {
                 Id = dto.Id,
@@ -54,6 +62,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
                 Description = dto.Description,
                 LocTotal = dto.LocTotal ?? 0,
                 TeacherId = dto.TeacherId,
+                Status = dto.Status,
                 CreatedAt = DateTime.Now,
                 CreatedBy = dto.TeacherId
             };
@@ -64,6 +73,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
             return Ok(ApiResponse<string>.SuccessResponse(newId, "Thêm đề bài thành công"));
         }
 
+
         // ✅ Sửa đề bài
         [HttpPut("update/{id}")]
         public async Task<IActionResult> UpdateAssignment(string id, [FromBody] LabAssignmentDto dto)
@@ -72,9 +82,17 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
             if (assignment == null)
                 return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy đề bài"));
 
+            // Validate status
+            var validStatuses = new[] { "Pending", "Active", "Inactive" };
+            if (!validStatuses.Contains(dto.Status))
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse("Trạng thái không hợp lệ."));
+            }
+
             assignment.Title = dto.Title;
             assignment.Description = dto.Description;
             assignment.LocTotal = dto.LocTotal ?? 0;
+            assignment.Status = dto.Status;
             assignment.UpdatedAt = DateTime.Now;
             assignment.UpdatedBy = dto.TeacherId;
 
@@ -83,6 +101,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 
             return Ok(ApiResponse<string>.SuccessResponse(id, "Cập nhật đề bài thành công"));
         }
+
 
         // ✅ Xóa đề bài
         [HttpDelete("delete/{id}")]
