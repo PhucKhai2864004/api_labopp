@@ -10,6 +10,7 @@ using Business_Logic.Interfaces.Teacher;
 using Business_Logic.Services.Teacher;
 using Business_Logic.Interfaces.Admin;
 using Business_Logic.Services.Admin;
+using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -82,6 +83,15 @@ builder.Services.AddAuthentication(options =>
 		RoleClaimType = ClaimTypes.Role, // 🟢 rất quan trọng cho [Authorize(Roles = "...")]
 		NameClaimType = ClaimTypes.Email
 	};
+});
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 20 * 1024 * 1024; // 20MB, đặt cao hơn 10MB để đảm bảo
+});
+
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.Limits.MaxRequestBodySize = 20 * 1024 * 1024; // 20MB
 });
 
 
