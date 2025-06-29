@@ -73,7 +73,35 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
                 return BadRequest(ApiResponse<string>.ErrorResponse("Thêm lớp học thất bại", new List<string> { ex.Message }));
             }
         }
-        
+
+        [HttpGet("classes")]
+        public async Task<IActionResult> GetClassesBySemesterAndYear([FromQuery] int semester, [FromQuery] string academicYear)
+        {
+            try
+            {
+                var classes = await _context.Classes
+                    .Where(c => c.Semester == semester && c.AcademicYear == academicYear)
+                    .Select(c => new
+                    {
+                        c.Id,
+                        c.Name,
+                        c.Subject,
+                        c.Semester,
+                        c.AcademicYear
+                    })
+                    .ToListAsync();
+                if (classes == null || classes.Count == 0)
+                {
+                    return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy lớp học nào với học kỳ và năm học đã chọn."));
+                }
+                return Ok(ApiResponse<object>.SuccessResponse(classes, "Lấy danh sách lớp thành công"));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse("Không thể lấy danh sách lớp", new List<string> { ex.Message }));
+            }
+        }
+
     }
 
 }
