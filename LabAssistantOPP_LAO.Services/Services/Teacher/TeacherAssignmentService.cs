@@ -31,22 +31,25 @@ namespace Business_Logic.Services.Teacher
 				.Where(s => assignmentIds.Contains(s.AssignmentId))
 				.ToListAsync();
 
-			var result = await _context.LabAssignments
+			var assignments = await _context.LabAssignments
 				.Where(a => assignmentIds.Contains(a.Id))
 				.OrderByDescending(a => a.UpdatedAt)
-				.Select(a => new AssignmentDto
-				{
-					Id = a.Id,
-					Title = a.Title,
-					Description = a.Description,
-					LocTarget = (int)a.LocTotal,
-					Status = "Open", // TODO: update logic later
-					TotalSubmissions = submissions.Count(s => s.AssignmentId == a.Id),
-					PassedCount = submissions.Count(s => s.AssignmentId == a.Id && s.Status == "Passed")
-				}).ToListAsync();
+				.ToListAsync();
+
+			var result = assignments.Select(a => new AssignmentDto
+			{
+				Id = a.Id,
+				Title = a.Title,
+				Description = a.Description,
+				LocTarget = (int)a.LocTotal,
+				Status = "Open", // TODO: update logic later
+				TotalSubmissions = submissions.Count(s => s.AssignmentId == a.Id),
+				PassedCount = submissions.Count(s => s.AssignmentId == a.Id && s.Status == "Passed")
+			}).ToList();
 
 			return result;
 		}
+
 
 		public async Task<AssignmentDto> GetAssignmentDetailAsync(string assignmentId)
 		{
