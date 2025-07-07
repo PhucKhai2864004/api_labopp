@@ -1,5 +1,6 @@
 ﻿using Business_Logic.Interfaces.Teacher;
 using LabAssistantOPP_LAO.DTO.DTOs.Teacher;
+using LabAssistantOPP_LAO.DTO.DTOs.Teacher.Enum;
 using LabAssistantOPP_LAO.Models.Data;
 using LabAssistantOPP_LAO.Models.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -20,49 +21,81 @@ namespace Business_Logic.Services.Teacher
 			_context = context;
 		}
 
-		public async Task<List<SubmissionDto>> GetSubmissionsWaitingReviewAsync(string classId)
+		public async Task<List<SubmissionDto>> GetSubmissionsWaitingReviewAsync(string classId, SubmissionStatus? status = null)
 		{
 			var assignmentIds = await _context.ClassHasLabAssignments
 				.Where(x => x.ClassId == classId)
 				.Select(x => x.AssignmentId)
 				.ToListAsync();
 
-			var result = await _context.Submissions
-				.Where(s => s.Status == "Draft" && assignmentIds.Contains(s.AssignmentId))
+			var query = _context.Submissions
+				.Include(x => x.Feedbacks)
+				.Where(s => assignmentIds.Contains(s.AssignmentId));
+
+			if (status.HasValue)
+			{
+				query = query.Where(s => s.Status == status.ToString());
+			}
+
+			var submissions = await query
 				.OrderByDescending(s => s.SubmittedAt)
-				.Select(s => new SubmissionDto
-				{
-					Id = s.Id,
-					StudentName = _context.Users.FirstOrDefault(u => u.Id == s.StudentId).Name,
-					AssignmentCode = s.AssignmentId,
-					SubmittedAt = s.SubmittedAt ?? DateTime.MinValue,
-					LOC = s.LocResult ?? 0,
-					Status = s.Status,
-					FilePath = _context.Files.FirstOrDefault(f => f.Id == s.ZipCode).Path
-				}).ToListAsync();
+				.ToListAsync();
 
-			return result;
-		}
+			// Load related data (Users, Files)
+			var users = await _context.Users.ToDictionaryAsync(u => u.Id, u => u.Name);
+			var files = await _context.Files.ToDictionaryAsync(f => f.Id, f => f.Path);
 
-		public async Task<SubmissionDto> GetSubmissionDetailAsync(string submissionId)
-		{
-			var s = await _context.Submissions.FindAsync(submissionId);
-			if (s == null) return null;
-
-			var user = await _context.Users.FindAsync(s.StudentId);
-			var file = await _context.Files.FindAsync(s.ZipCode);
-			var feedback = await _context.Feedbacks.FirstOrDefaultAsync(f => f.SubmissionId == submissionId);
-
-			return new SubmissionDto
+			return submissions.Select(s => new SubmissionDto
 			{
 				Id = s.Id,
-				StudentName = user?.Name ?? "N/A",
+				StudentName = users.ContainsKey(s.StudentId) ? users[s.StudentId] : "N/A",
 				AssignmentCode = s.AssignmentId,
 				SubmittedAt = s.SubmittedAt ?? DateTime.MinValue,
 				LOC = s.LocResult ?? 0,
 				Status = s.Status,
-				FilePath = file?.Path,
-				Comment = feedback?.Comment ?? ""
+				FilePath = files.ContainsKey(s.ZipCode) ? files[s.ZipCode] : "",
+				Comment = s.Feedbacks.Any() ? s.Feedbacks.First().Comment : "No feedback yet"
+			}).ToList();
+		}
+
+
+		public async Task<SubmissionDetailDto> GetSubmissionDetailAsync(string submissionId)
+		{
+			var s = await _context.Submissions
+				.Include(x => x.Student)
+				.Include(x => x.Assignment)
+				.Include(x => x.Feedbacks)
+				.Include(x => x.TestCaseResults)
+				.Include(x => x.ZipCodeNavigation)
+				.FirstOrDefaultAsync(x => x.Id == submissionId);
+
+			if (s == null) return null;
+
+			return new SubmissionDetailDto
+			{
+				Id = s.Id,
+				StudentId = s.StudentId,
+				StudentName = s.Student?.Name ?? "N/A",
+
+				AssignmentId = s.AssignmentId,
+				AssignmentTitle = s.Assignment?.Title ?? "Unknown",
+				LocTarget = s.Assignment?.LocTotal ?? 0,
+
+				SubmittedAt = s.SubmittedAt ?? DateTime.MinValue,
+				LOC = s.LocResult ?? 0,
+				Status = s.Status ?? "Unknown",
+
+				FilePath = s.ZipCodeNavigation?.Path ?? "",
+
+				Feedbacks = s.Feedbacks.Select(f => f.Comment).ToList(),
+
+				TestCaseResults = s.TestCaseResults.Select(t => new TestCaseResultDto
+				{
+					Id = t.Id,
+					TestCaseId = t.TestCaseId,
+					ActualOutput = t.ActualOutput,
+					IsPassed = t.IsPassed ?? false
+				}).ToList()
 			};
 		}
 

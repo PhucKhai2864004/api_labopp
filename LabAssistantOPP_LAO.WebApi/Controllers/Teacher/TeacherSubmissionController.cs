@@ -1,5 +1,6 @@
 ﻿using Business_Logic.Interfaces.Teacher;
 using LabAssistantOPP_LAO.DTO.DTOs.Teacher;
+using LabAssistantOPP_LAO.DTO.DTOs.Teacher.Enum;
 using LabAssistantOPP_LAO.Models.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,18 +20,18 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
             _service = service;
         }
 
-        [HttpGet("waiting/{classId}")]
-        public async Task<IActionResult> GetWaitingReview(string classId)
-        {
-            var data = await _service.GetSubmissionsWaitingReviewAsync(classId);
-            return Ok(ApiResponse<List<SubmissionDto>>.SuccessResponse(data, "Success"));
-        }
+		[HttpGet("waiting/{classId}")]
+		public async Task<IActionResult> GetWaitingReview(string classId, [FromQuery] SubmissionStatus? status)
+		{
+			var data = await _service.GetSubmissionsWaitingReviewAsync(classId, status);
+			return Ok(ApiResponse<List<SubmissionDto>>.SuccessResponse(data, "Success"));
+		}
 
-        [HttpGet("{submissionId}")]
+		[HttpGet("{submissionId}")]
         public async Task<IActionResult> GetDetail(string submissionId)
         {
             var data = await _service.GetSubmissionDetailAsync(submissionId);
-            return Ok(ApiResponse<SubmissionDto>.SuccessResponse(data, "Success"));
+            return Ok(ApiResponse<SubmissionDetailDto>.SuccessResponse(data, "Success"));
         }
 
         [HttpPost("grade")]
