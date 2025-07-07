@@ -11,6 +11,7 @@ using Business_Logic.Services.Teacher;
 using Business_Logic.Interfaces.Admin;
 using Business_Logic.Services.Admin;
 using Microsoft.AspNetCore.Http.Features;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,7 +19,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<LabOppContext>(options =>
 	options.UseSqlServer(builder.Configuration.GetConnectionString("DB"),
 		sqlServerOptions => sqlServerOptions.EnableRetryOnFailure()));
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+	.AddJsonOptions(options =>
+	{
+		options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+	});
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
