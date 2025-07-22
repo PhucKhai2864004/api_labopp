@@ -23,5 +23,13 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 COPY --from=build /app/publish .
 
+# Set environment variables (optional for App Platform)
+ENV ASPNETCORE_URLS=http://+:8080 \
+    DOTNET_RUNNING_IN_CONTAINER=true \
+    DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
+
+# Expose port (important for App Platform)
+EXPOSE 8080
+
 # Start app
 ENTRYPOINT ["dotnet", "LabAssistantOPP_LAO.WebApi.dll"]
