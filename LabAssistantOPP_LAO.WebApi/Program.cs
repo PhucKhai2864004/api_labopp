@@ -118,6 +118,8 @@ var app = builder.Build();
 	app.UseSwagger();
 	app.UseSwaggerUI();
 
+app.MapGet("/", () => "API is live");
+
 
 app.UseCors("AllowFrontend");
 
