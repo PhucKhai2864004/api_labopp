@@ -118,7 +118,7 @@ var app = builder.Build();
 	app.UseSwagger();
 	app.UseSwaggerUI();
 
-app.MapGet("/", () => "API is live");
+app.MapGet("/", () => Results.Ok("✅ API is running. Use /swagger to view documentation."));
 
 
 app.UseCors("AllowFrontend");
