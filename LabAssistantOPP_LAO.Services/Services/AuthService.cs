@@ -95,8 +95,9 @@ namespace Business_Logic.Services
 		new Claim(JwtRegisteredClaimNames.Sub, user.Id),
 		new Claim(JwtRegisteredClaimNames.Email, user.Email),
 		new Claim(ClaimTypes.Role, user.Role.Name), // ✅ dùng role từ DB
-        new Claim("userId", user.Id)
-	};
+        new Claim("userId", user.Id),
+        new Claim(ClaimTypes.NameIdentifier, user.Id)
+    };
 
 			var token = new JwtSecurityToken(
 				issuer: jwtSettings["Issuer"],

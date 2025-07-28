@@ -1,9 +1,14 @@
 ﻿using Business_Logic.Interfaces.Teacher;
 using LabAssistantOPP_LAO.DTO.DTOs.Teacher;
 using LabAssistantOPP_LAO.Models.Common;
+using LabAssistantOPP_LAO.Models.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Hosting;
+using System.IO.Compression;
 using System.Security.Claims;
+using System.Text;
 
 namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
 {
@@ -13,10 +18,16 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
     public class TeacherAssignmentController : ControllerBase
     {
         private readonly ITeacherAssignmentService _service;
-
-        public TeacherAssignmentController(ITeacherAssignmentService service)
+        private readonly IWebHostEnvironment _environment;
+        private readonly LabOppContext _context;
+        public TeacherAssignmentController(
+    ITeacherAssignmentService service,
+    IWebHostEnvironment environment,
+    LabOppContext context)
         {
             _service = service;
+            _environment = environment;
+            _context = context;
         }
 
         [HttpGet("{classId}")]
@@ -54,6 +65,67 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
             return Ok(ApiResponse<string>.SuccessResponse(success ? "Updated" : "Not found"));
         }
 
+        [HttpGet("view-submission")]
+        public async Task<IActionResult> ViewJavaFileFromZip(string zipPath, string javaFileName)
+        {
+            if (!System.IO.File.Exists(zipPath))
+                return NotFound("File zip không tồn tại.");
+
+            using var archive = ZipFile.OpenRead(zipPath);
+            var entry = archive.Entries.FirstOrDefault(e => e.FullName.EndsWith(javaFileName));
+
+            if (entry == null)
+                return NotFound("Không tìm thấy file .java.");
+
+            using var reader = new StreamReader(entry.Open(), Encoding.UTF8);
+            var content = await reader.ReadToEndAsync();
+
+            return Content(content, "text/plain", Encoding.UTF8);
+        }
+
+        [HttpGet("view-java/{studentId}/{classId}/{assignmentId}")]
+        public IActionResult ViewJavaFiles(string studentId, string classId, string assignmentId)
+        {
+            // Tên file nộp bài của sinh viên
+            var fileName = $"{studentId}_{classId}_{assignmentId}.zip";
+            var zipPath = Path.Combine("wwwroot", "uploads", "zips", fileName);
+
+
+            if (!System.IO.File.Exists(zipPath))
+                return NotFound("Không tìm thấy file zip");
+
+            var result = new Dictionary<string, string>();
+
+            try
+            {
+                using (var archive = ZipFile.OpenRead(zipPath))
+                {
+                    foreach (var entry in archive.Entries)
+                    {
+                        // Bỏ qua thư mục và chỉ lấy file .java
+                        if (!entry.FullName.EndsWith(".java", StringComparison.OrdinalIgnoreCase) || entry.Length == 0)
+                            continue;
+
+                        using (var reader = new StreamReader(entry.Open(), Encoding.UTF8))
+                        {
+                            var content = reader.ReadToEnd();
+                            result[entry.FullName] = content;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Lỗi xử lý file zip: " + ex.Message);
+            }
+
+            return Ok(result);
+        }
+
+
+
+
+
         // 🔁 Reusable method for extracting validation error messages
         private ApiResponse<string> ValidationErrorResponse()
         {
@@ -64,5 +136,6 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
 
             return ApiResponse<string>.ErrorResponse("Invalid input", errors);
         }
+
     }
 }

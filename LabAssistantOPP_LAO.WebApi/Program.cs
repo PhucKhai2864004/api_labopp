@@ -12,6 +12,7 @@ using Business_Logic.Interfaces.Admin;
 using Business_Logic.Services.Admin;
 using Microsoft.AspNetCore.Http.Features;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,6 +35,8 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
+builder.Services.AddSignalR();
+
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -99,6 +102,22 @@ builder.Services.AddAuthentication(options =>
 		RoleClaimType = ClaimTypes.Role, // 🟢 rất quan trọng cho [Authorize(Roles = "...")]
 		NameClaimType = ClaimTypes.Email
 	};
+
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+
+            // Nếu request đến từ SignalR hub path => lấy token từ query
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/notificationHub"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 builder.Services.Configure<FormOptions>(options =>
 {
@@ -109,6 +128,9 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
 {
     serverOptions.Limits.MaxRequestBodySize = 20 * 1024 * 1024; // 20MB
 });
+
+builder.Services.AddSingleton<IUserIdProvider, CustomUserIdProvider>();
+
 
 
 var app = builder.Build();
@@ -130,5 +152,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHub<NotificationHub>("/notificationHub");
+
 
 app.Run();
