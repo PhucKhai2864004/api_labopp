@@ -163,6 +163,7 @@ CREATE TABLE TestCase (
     id VARCHAR(255) PRIMARY KEY,
     assignment_id VARCHAR(255),
     expected_output TEXT,
+	input TEXT,
     loc INT,
     created_by VARCHAR(255),
     created_at DATETIME,
@@ -262,10 +263,11 @@ INSERT INTO Feedback (id, submission_id, teacher_id, comment, created_at, update
 
 
 
-INSERT INTO TestCase (id, assignment_id, expected_output, loc, created_by, created_at, updated_by, updated_at) VALUES
-('tc1', 'lab1', 'Hello World', 50, 'HE183210', GETDATE(), 'HE183210', GETDATE()),
-('tc2', 'lab2', 'Area: 25', 60, 'HE183210', GETDATE(), 'HE183210', GETDATE()),
-('tc3', 'lab3', 'Polymorphism Example', 40, 'HE183210', GETDATE(), 'HE183210', GETDATE());
+INSERT INTO TestCase (id, assignment_id, expected_output, input, loc, created_by, created_at, updated_by, updated_at) VALUES
+('tc1', 'lab1', 'Hello World', 'Hello World', 50, 'HE183210', GETDATE(), 'HE183210', GETDATE()),
+('tc2', 'lab2', 'Area: 25', '5', 60, 'HE183210', GETDATE(), 'HE183210', GETDATE()),
+('tc3', 'lab3', 'Polymorphism Example', 'DemoPoly', 40, 'HE183210', GETDATE(), 'HE183210', GETDATE());
+
 
 
 INSERT INTO TestCaseResult (id, submission_id, test_case_id, actual_output, is_passed) VALUES
