@@ -1,0 +1,6 @@
+@NewGradingTest_HostAddress = http://localhost:5216
+
+GET {{NewGradingTest_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

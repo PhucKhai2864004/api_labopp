@@ -507,7 +507,10 @@ public partial class LabOppContext : DbContext
             entity.Property(e => e.ExpectedOutput)
                 .HasColumnType("text")
                 .HasColumnName("expected_output");
-            entity.Property(e => e.Loc).HasColumnName("loc");
+			entity.Property(e => e.Input)
+				.HasColumnType("text")
+				.HasColumnName("input");
+			entity.Property(e => e.Loc).HasColumnName("loc");
             entity.Property(e => e.UpdatedAt)
                 .HasColumnType("datetime")
                 .HasColumnName("updated_at");
