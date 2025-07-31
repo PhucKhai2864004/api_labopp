@@ -51,6 +51,21 @@ namespace NewGradingTest.Services
 				await dto.ZipFile.CopyToAsync(fs);
 			}
 
+			var fileInfo = new FileInfo(zipPath);
+			var uploadFile = new UploadFile
+			{
+				Id = Guid.NewGuid().ToString(),
+				OriginName = dto.ZipFile.FileName,
+				Name = "code.zip", // hoặc Path.GetFileNameWithoutExtension(zipPath)
+				Path = zipPath, // hoặc lưu tương đối nếu không muốn lưu full path
+				MimeType = dto.ZipFile.ContentType,
+				Size = (int)(new FileInfo(zipPath).Length),
+				UploadedBy = dto.StudentId,
+				UploadedAt = DateTime.UtcNow
+			};
+			_context.Files.Add(uploadFile);
+
+
 			// 3. Giải nén
 			ZipFile.ExtractToDirectory(zipPath, folder);
 			File.Delete(zipPath);
@@ -74,7 +89,7 @@ namespace NewGradingTest.Services
 				Id = submissionId,
 				StudentId = dto.StudentId,
 				AssignmentId = dto.ProblemId,
-				ZipCode = null, // bỏ qua nếu bạn không lưu File record
+				ZipCode = uploadFile.Id, // bỏ qua nếu bạn không lưu File record
 				Status = "Draft",
 				SubmittedAt = DateTime.UtcNow,
 				CreatedBy = dto.StudentId,
