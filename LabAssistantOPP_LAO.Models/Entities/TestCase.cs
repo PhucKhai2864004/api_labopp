@@ -11,7 +11,9 @@ public partial class TestCase
 
     public string? ExpectedOutput { get; set; }
 
-    public int? Loc { get; set; }
+    public string? Input { get; set; }
+
+	public int? Loc { get; set; }
 
     public string? CreatedBy { get; set; }
 

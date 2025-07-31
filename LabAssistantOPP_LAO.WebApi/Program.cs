@@ -10,12 +10,34 @@ using Business_Logic.Interfaces.Teacher;
 using Business_Logic.Services.Teacher;
 using Business_Logic.Interfaces.Admin;
 using Business_Logic.Services.Admin;
+using Microsoft.AspNetCore.Http.Features;
+using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddDbContext<LabOppContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DB")));
-builder.Services.AddControllers();
+builder.Services.AddDbContext<LabOppContext>(options =>
+	options.UseSqlServer(builder.Configuration.GetConnectionString("DB"),
+		sqlServerOptions => sqlServerOptions.EnableRetryOnFailure()));
+builder.Services.AddControllers()
+	.AddJsonOptions(options =>
+	{
+		options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+	});
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+builder.Services.AddSignalR();
+
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -55,6 +77,7 @@ builder.Services.AddScoped<ITeacherSubmissionService, TeacherSubmissionService>(
 builder.Services.AddScoped<ITeacherStudentService, TeacherStudentService>();
 builder.Services.AddScoped<ITeacherLocService, TeacherLocService>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
 
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -79,17 +102,48 @@ builder.Services.AddAuthentication(options =>
 		RoleClaimType = ClaimTypes.Role, // 🟢 rất quan trọng cho [Authorize(Roles = "...")]
 		NameClaimType = ClaimTypes.Email
 	};
+
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+
+            // Nếu request đến từ SignalR hub path => lấy token từ query
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/notificationHub"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 20 * 1024 * 1024; // 20MB, đặt cao hơn 10MB để đảm bảo
+});
+
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.Limits.MaxRequestBodySize = 20 * 1024 * 1024; // 20MB
+});
+
+builder.Services.AddSingleton<IUserIdProvider, CustomUserIdProvider>();
+
 
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+
+	app.UseSwagger();
+	app.UseSwaggerUI();
+
+app.MapGet("/", () => Results.Ok("✅ API is running. Use /swagger to view documentation."));
+
+
+app.UseCors("AllowFrontend");
 
 app.UseHttpsRedirection();
 
@@ -98,5 +152,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHub<NotificationHub>("/notificationHub");
+
 
 app.Run();

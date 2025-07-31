@@ -18,11 +18,18 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
 			_dashboardService = dashboardService;
 		}
 
-		[HttpGet("{classId}")]
+		[HttpGet("getDashboard/{classId}")]
 		public async Task<IActionResult> GetDashboard(string classId)
 		{
 			var data = await _dashboardService.GetDashboardAsync(classId);
 			return Ok(ApiResponse<TeacherDashboardDto>.SuccessResponse(data, "Success"));
+		}
+
+		[HttpGet("getClass/{teacherId}")]
+		public async Task<IActionResult> GetManagedClasses(string teacherId)
+		{
+			var data = await _dashboardService.GetManagedClassesAsync(teacherId);
+			return Ok(ApiResponse<List<ClassDto>>.SuccessResponse(data, "Success"));
 		}
 	}
 }

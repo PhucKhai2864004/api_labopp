@@ -11,6 +11,10 @@ public partial class User
 
     public string? Email { get; set; }
 
+    public string? UserName { get; set; }
+
+    public string? Password { get; set; }
+
     public string? RoleId { get; set; }
 
     public bool? IsActive { get; set; }
@@ -33,9 +37,13 @@ public partial class User
 
     public virtual Role? Role { get; set; }
 
+    public virtual Student? Student { get; set; }
+
     public virtual ICollection<StudentInClass> StudentInClasses { get; set; } = new List<StudentInClass>();
 
     public virtual ICollection<StudentLabAssignment> StudentLabAssignments { get; set; } = new List<StudentLabAssignment>();
 
     public virtual ICollection<Submission> Submissions { get; set; } = new List<Submission>();
+
+    public virtual Teacher? Teacher { get; set; }
 }

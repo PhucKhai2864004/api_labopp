@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using LabAssistantOPP_LAO.DTO.DTOs;
 using LabAssistantOPP_LAO.Models.Entities;
+using System.Security.Claims;
+using Microsoft.AspNetCore.SignalR;
 
 namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
 {
@@ -13,11 +15,14 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
     [Authorize(Roles = "Student")]
     public class AssignmentController : ControllerBase
     {
+        private readonly IHubContext<NotificationHub> _hubContext;
+
         private readonly LabOppContext _context;
 
-        public AssignmentController(LabOppContext context)
+        public AssignmentController(LabOppContext context, IHubContext<NotificationHub> hubContext)
         {
             _context = context;
+            _hubContext = hubContext;
         }
 
         [HttpGet("student")]
@@ -28,6 +33,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
             {
                 return Unauthorized(ApiResponse<string>.ErrorResponse("Không xác định được sinh viên"));
             }
+
 
             var assignments = await _context.StudentInClasses
                 .Where(s => s.StudentId == studentId)
@@ -80,6 +86,15 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
         [HttpPost("submit")]
         public async Task<IActionResult> SubmitAssignment([FromForm] SubmitAssignmentDto model)
         {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+
+                return BadRequest(ApiResponse<string>.ErrorResponse("Dữ liệu không hợp lệ", errors));
+            }
             var studentId = User.FindFirst("userId")?.Value;
             if (string.IsNullOrEmpty(studentId))
             {
@@ -94,6 +109,13 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
             if (Path.GetExtension(model.ZipFile.FileName).ToLower() != ".zip")
             {
                 return BadRequest(ApiResponse<string>.ErrorResponse("Chỉ được phép nộp file .zip."));
+            }
+
+            // Check file size (limit to 10MB)
+            const long maxFileSize = 10 * 1024 * 1024; // 10MB
+            if (model.ZipFile.Length > maxFileSize)
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse("File vượt quá kích thước tối đa là 10MB."));
             }
 
             // Lấy class_id mà student đang học assignment đó
@@ -162,6 +184,31 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
             }
 
             await _context.SaveChangesAsync();
+
+
+            var teacherId = await _context.StudentInClasses
+                .Where(s => s.StudentId == studentId)
+                .Join(
+                    _context.Classes,
+                    s => s.ClassId,
+                    c => c.Id,
+                    (s, c) => c.TeacherId
+                )
+                .FirstOrDefaultAsync();
+
+            if (!string.IsNullOrEmpty(teacherId))
+            {
+                await _hubContext.Clients
+                    .User(teacherId)
+                    .SendAsync("ReceiveNotification", new
+                    {
+                        message = $"Sinh viên {studentId} vừa nộp bài Assignment {model.AssignmentId}",
+                        assignmentId = model.AssignmentId,
+                        studentId = studentId,
+                        submittedAt = DateTime.Now
+                    });
+            }
+
 
             return Ok(ApiResponse<string>.SuccessResponse("Thành công", "Đã nộp bài thành công."));
         }

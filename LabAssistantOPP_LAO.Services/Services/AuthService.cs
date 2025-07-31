@@ -1,6 +1,7 @@
 ﻿using Business_Logic.Interfaces;
 using Google.Apis.Auth;
 using LabAssistantOPP_LAO.DTO.DTOs;
+using LabAssistantOPP_LAO.Models.Common;
 using LabAssistantOPP_LAO.Models.Data;
 using LabAssistantOPP_LAO.Models.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -27,17 +28,48 @@ namespace Business_Logic.Services
 			_context = context;
 		}
 
-		public async Task<AuthResponse> LoginWithGoogleAsync(GoogleLoginRequest request)
+		public async Task<ApiResponse<AuthResponse>> LoginWithGoogleAsync(GoogleLoginRequest request)
 		{
 			var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, new GoogleJsonWebSignature.ValidationSettings
 			{
 				Audience = new[] { _config["GoogleAuth:ClientId"] }
 			});
 
-			var user = _context.Users.Include(u => u.Role).FirstOrDefault(u => u.Email == payload.Email);
+			var user = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Email == payload.Email);
 
-			if (user == null || user.IsActive != true)
+			if (user == null)
+			{
+				return ApiResponse<AuthResponse>.ErrorResponse("Tài khoản không tồn tại trong hệ thống");
+			}
+
+			if ((bool)!user.IsActive)
+			{
+				return ApiResponse<AuthResponse>.ErrorResponse("Tài khoản đã bị khóa");
+			}
+
+			var token = GenerateJwt(user);
+
+			var response = new AuthResponse
+			{
+				UserId = user.Id,
+				Email = user.Email,
+				Role = user.Role?.Name,
+				Token = token
+			};
+
+			return ApiResponse<AuthResponse>.SuccessResponse(response, "Đăng nhập thành công");
+		}
+
+		public async Task<AuthResponse> LoginWithCredentialsAsync(CredentialsLoginRequest request)
+		{
+			var user = await _context.Users.Include(u => u.Role)
+				.FirstOrDefaultAsync(u => u.UserName == request.UserName);
+
+			if (user == null || (bool)!user.IsActive)
 				throw new UnauthorizedAccessException("User not found or inactive");
+
+			if (user.Password != request.Password)
+				throw new UnauthorizedAccessException("Incorrect password");
 
 			return new AuthResponse
 			{
@@ -47,6 +79,7 @@ namespace Business_Logic.Services
 				Token = GenerateJwt(user)
 			};
 		}
+
 
 		private string GenerateJwt(User user)
 		{
@@ -62,8 +95,9 @@ namespace Business_Logic.Services
 		new Claim(JwtRegisteredClaimNames.Sub, user.Id),
 		new Claim(JwtRegisteredClaimNames.Email, user.Email),
 		new Claim(ClaimTypes.Role, user.Role.Name), // ✅ dùng role từ DB
-        new Claim("userId", user.Id)
-	};
+        new Claim("userId", user.Id),
+        new Claim(ClaimTypes.NameIdentifier, user.Id)
+    };
 
 			var token = new JwtSecurityToken(
 				issuer: jwtSettings["Issuer"],

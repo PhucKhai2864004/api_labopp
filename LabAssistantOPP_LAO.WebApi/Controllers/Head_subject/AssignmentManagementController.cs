@@ -46,7 +46,17 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
         [HttpPost("add")]
         public async Task<IActionResult> AddAssignment([FromBody] LabAssignmentDto dto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ValidationErrorResponse());
             var newId = Guid.NewGuid().ToString();
+
+            // Validate status
+            var validStatuses = new[] { "Pending", "Active", "Inactive" };
+            if (!validStatuses.Contains(dto.Status))
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse("Trạng thái không hợp lệ."));
+            }
+
             var assignment = new LabAssignment
             {
                 Id = dto.Id,
@@ -54,6 +64,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
                 Description = dto.Description,
                 LocTotal = dto.LocTotal ?? 0,
                 TeacherId = dto.TeacherId,
+                Status = dto.Status,
                 CreatedAt = DateTime.Now,
                 CreatedBy = dto.TeacherId
             };
@@ -64,17 +75,28 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
             return Ok(ApiResponse<string>.SuccessResponse(newId, "Thêm đề bài thành công"));
         }
 
+
         // ✅ Sửa đề bài
         [HttpPut("update/{id}")]
         public async Task<IActionResult> UpdateAssignment(string id, [FromBody] LabAssignmentDto dto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ValidationErrorResponse());
             var assignment = await _context.LabAssignments.FindAsync(id);
             if (assignment == null)
                 return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy đề bài"));
 
+            // Validate status
+            var validStatuses = new[] { "Pending", "Active", "Inactive" };
+            if (!validStatuses.Contains(dto.Status))
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse("Trạng thái không hợp lệ."));
+            }
+
             assignment.Title = dto.Title;
             assignment.Description = dto.Description;
             assignment.LocTotal = dto.LocTotal ?? 0;
+            assignment.Status = dto.Status;
             assignment.UpdatedAt = DateTime.Now;
             assignment.UpdatedBy = dto.TeacherId;
 
@@ -83,6 +105,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 
             return Ok(ApiResponse<string>.SuccessResponse(id, "Cập nhật đề bài thành công"));
         }
+
 
         // ✅ Xóa đề bài
         [HttpDelete("delete/{id}")]
@@ -203,11 +226,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
             return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
+
         [HttpPost("pdf")]
         public async Task<IActionResult> UploadPdf(IFormFile file, [FromForm] string uploadedBy)
         {
@@ -271,6 +290,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
             return Ok(promt);
         }
 
+
         private ApiResponse<string> ValidationErrorResponse()
         {
             var errors = ModelState.Values
@@ -280,8 +300,6 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 
             return ApiResponse<string>.ErrorResponse("Dữ liệu không hợp lệ", errors);
         }
->>>>>>> Stashed changes
-
 
     }
 
