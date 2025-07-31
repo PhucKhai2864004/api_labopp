@@ -226,6 +226,71 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
             return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
+
+        [HttpPost("pdf")]
+        public async Task<IActionResult> UploadPdf(IFormFile file, [FromForm] string uploadedBy)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("File không tồn tại");
+
+            if (file.ContentType != "application/pdf")
+                return BadRequest("Chỉ hỗ trợ file PDF");
+
+            var fileId = Guid.NewGuid().ToString();
+            var fileName = $"{fileId}.pdf";
+            var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "pdf");
+
+            if (!Directory.Exists(uploadPath))
+                Directory.CreateDirectory(uploadPath);
+
+            var filePath = Path.Combine(uploadPath, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var uploadFile = new UploadFile
+            {
+                Id = fileId,
+                OriginName = file.FileName,
+                Name = fileName,
+                Path = $"/uploads/pdf/{fileName}",
+                MimeType = file.ContentType,
+                Size = (int)file.Length,
+                UploadedBy = uploadedBy,
+                UploadedAt = DateTime.Now
+            };
+
+            _context.Files.Add(uploadFile);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Tải file thành công",
+                file = uploadFile
+            });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddPromt([FromBody] PromtCreateDto dto)
+        {
+            if (dto == null)
+                return BadRequest("Invalid data.");
+
+            var promt = new Promt
+            {
+                Id = Guid.NewGuid().ToString(), // tự sinh ID
+                PromtDetail = dto.PromtDetail
+            };
+
+            _context.Promts.Add(promt);
+            await _context.SaveChangesAsync();
+
+            return Ok(promt);
+        }
+
+
         private ApiResponse<string> ValidationErrorResponse()
         {
             var errors = ModelState.Values
@@ -235,7 +300,6 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 
             return ApiResponse<string>.ErrorResponse("Dữ liệu không hợp lệ", errors);
         }
-
 
     }
 

@@ -26,7 +26,7 @@ public partial class LabOppContext : DbContext
     public virtual DbSet<UploadFile> Files { get; set; }
 
     public virtual DbSet<LabAssignment> LabAssignments { get; set; }
-
+    public virtual DbSet<Promt> Promts { get; set; }
     public virtual DbSet<Role> Roles { get; set; }
 
     public virtual DbSet<Student> Students { get; set; }
@@ -261,6 +261,38 @@ public partial class LabOppContext : DbContext
             entity.HasOne(d => d.Teacher).WithMany(p => p.LabAssignments)
                 .HasForeignKey(d => d.TeacherId)
                 .HasConstraintName("FK__Lab_Assig__teach__45F365D3");
+        });
+
+        modelBuilder.Entity<Promt>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Promt__3213E83FC4EDD200");
+
+            entity.ToTable("Promt");
+
+            entity.Property(e => e.Id)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("id");
+            entity.Property(e => e.PromtDetail)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("promt_detail");
+        });
+
+        modelBuilder.Entity<Promt>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Promt__3213E83FC4EDD200");
+
+            entity.ToTable("Promt");
+
+            entity.Property(e => e.Id)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("id");
+            entity.Property(e => e.PromtDetail)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("promt_detail");
         });
 
         modelBuilder.Entity<Role>(entity =>
