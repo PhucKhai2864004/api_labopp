@@ -204,7 +204,10 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
         }
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
         [HttpPost("pdf")]
         public async Task<IActionResult> UploadPdf(IFormFile file, [FromForm] string uploadedBy)
         {
