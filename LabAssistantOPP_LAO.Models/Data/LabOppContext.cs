@@ -279,22 +279,6 @@ public partial class LabOppContext : DbContext
                 .HasColumnName("promt_detail");
         });
 
-        modelBuilder.Entity<Promt>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__Promt__3213E83FC4EDD200");
-
-            entity.ToTable("Promt");
-
-            entity.Property(e => e.Id)
-                .HasMaxLength(255)
-                .IsUnicode(false)
-                .HasColumnName("id");
-            entity.Property(e => e.PromtDetail)
-                .HasMaxLength(255)
-                .IsUnicode(false)
-                .HasColumnName("promt_detail");
-        });
-
         modelBuilder.Entity<Role>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Role__3213E83F52181829");
