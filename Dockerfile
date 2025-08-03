@@ -8,6 +8,7 @@ COPY LabAssistantOPP_LAO.WebApi/*.csproj ./LabAssistantOPP_LAO.WebApi/
 COPY LabAssistantOPP_LAO.Services/*.csproj ./LabAssistantOPP_LAO.Services/
 COPY LabAssistantOPP_LAO.DTO/*.csproj ./LabAssistantOPP_LAO.DTO/
 COPY LabAssistantOPP_LAO.Models/*.csproj ./LabAssistantOPP_LAO.Models/
+COPY NewGradingTest/*.csproj ./NewGradingTest/
 
 # Restore NuGet packages
 RUN dotnet restore
