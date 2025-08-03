@@ -160,7 +160,11 @@ using (var scope = app.Services.CreateScope())
 // Configure the HTTP request pipeline.
 
 app.UseSwagger();
-	app.UseSwaggerUI();
+	app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/api-labopp/swagger/v1/swagger.json", "My API V1");
+        c.RoutePrefix = "api-labopp/swagger"; // <- khớp với URL hiện tại của bạn
+    });
 
 app.MapGet("/", () => Results.Ok("✅ API is running. Use /swagger to view documentation."));
 
