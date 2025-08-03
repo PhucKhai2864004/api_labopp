@@ -69,6 +69,10 @@ builder.Services.AddSwaggerGen(c =>
 			new string[] {}
 		}
 	});
+    c.AddServer(new Microsoft.OpenApi.Models.OpenApiServer
+    {
+        Url = "/api-labopp"
+    });
 });
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITeacherDashboardService, TeacherDashboardService>();
@@ -164,7 +168,7 @@ app.UseSwagger();
 	app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/api-labopp/swagger/v1/swagger.json", "My API V1");
-        c.RoutePrefix = "api-labopp/swagger"; // <- khớp với URL hiện tại của bạn
+        c.RoutePrefix = "swagger"; // <- khớp với URL hiện tại của bạn
     });
 
 app.MapGet("/", () => Results.Ok("✅ API is running. Use /swagger to view documentation."));
