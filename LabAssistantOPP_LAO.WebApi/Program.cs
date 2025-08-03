@@ -135,9 +135,31 @@ builder.Services.AddSingleton<IUserIdProvider, CustomUserIdProvider>();
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<LabOppContext>();
+    try
+    {
+        Console.WriteLine("🔍 Checking SQL Server connection...");
+        if (db.Database.CanConnect())
+        {
+            Console.WriteLine("✅ Connected to SQL Server successfully!");
+        }
+        else
+        {
+            Console.WriteLine("❌ Cannot connect to SQL Server!");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("🔥 SQL Connection Error:");
+        Console.WriteLine(ex.Message);
+    }
+}
+
 // Configure the HTTP request pipeline.
 
-	app.UseSwagger();
+app.UseSwagger();
 	app.UseSwaggerUI();
 
 app.MapGet("/", () => Results.Ok("✅ API is running. Use /swagger to view documentation."));
