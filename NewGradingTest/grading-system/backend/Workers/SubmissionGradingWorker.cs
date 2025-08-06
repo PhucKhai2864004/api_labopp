@@ -39,9 +39,12 @@ namespace NewGradingTest.grading_system.backend.Workers
 			var javaFiles = Directory.GetFiles(job.WorkDir, "*.java", SearchOption.AllDirectories);
 			foreach (var file in javaFiles)
 			{
-				var destPath = Path.Combine(tempWorkerDir, Path.GetFileName(file)); // Flatten structure
+				var relativePath = Path.GetRelativePath(job.WorkDir, file);
+				var destPath = Path.Combine(tempWorkerDir, relativePath);
+				Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
 				File.Copy(file, destPath, overwrite: true);
 			}
+
 
 			await _hubContext.Clients.Group($"submission_{job.SubmissionId}")
 				.SendAsync("GradingStarted", job.SubmissionId);

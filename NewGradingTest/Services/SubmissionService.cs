@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using NewGradingTest.DTOs;
 using NewGradingTest.Models;
 using System.IO.Compression;
+using System.Text.RegularExpressions;
 
 namespace NewGradingTest.Services
 {
@@ -20,6 +21,34 @@ namespace NewGradingTest.Services
 		{
 			_context = context;
 		}
+
+		private string DetectMainClass(string workDir)
+		{
+			var javaFiles = Directory.GetFiles(workDir, "*.java", SearchOption.AllDirectories);
+
+			foreach (var file in javaFiles)
+			{
+				var code = File.ReadAllText(file);
+				// Kiểm tra có hàm main không
+				if (!Regex.IsMatch(code, @"public\s+static\s+void\s+main\s*\("))
+					continue;
+
+				// Lấy package
+				var packageMatch = Regex.Match(code, @"(?m)^\s*package\s+([\w\.]+)\s*;");
+				var packageName = packageMatch.Success ? packageMatch.Groups[1].Value : null;
+
+				// Lấy class name từ file (ưu tiên public class)
+				var classMatch = Regex.Match(code, @"(?m)^\s*(public\s+)?class\s+(\w+)");
+				if (!classMatch.Success) continue;
+				var className = classMatch.Groups[2].Value;
+
+				return packageName != null ? $"{packageName}.{className}" : className;
+			}
+
+			// Nếu không tìm thấy file có hàm main
+			return "Main"; // fallback
+		}
+
 		public async Task<string> SaveSubmissionAsync(SubmitCodeDto dto)
 		{
 			var submissionId = $"{dto.StudentId}_{dto.ProblemId}";
@@ -71,11 +100,13 @@ namespace NewGradingTest.Services
 			File.Delete(zipPath);
 
 			// 4. Lưu thông tin tạm phục vụ grading
+			var mainClass = DetectMainClass(folder);
+
 			var submissionInfo = new SubmissionInfo
 			{
 				SubmissionId = submissionId,
 				ProblemId = dto.ProblemId,
-				MainClass = dto.MainClass ?? "Main",
+				MainClass = mainClass,
 				WorkDir = folder
 			};
 
