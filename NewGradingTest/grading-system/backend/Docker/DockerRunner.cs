@@ -30,7 +30,7 @@ namespace NewGradingTest.grading_system.backend.Docker
 				{
 					FileName = "docker",
 					Arguments = $"run --rm --user {uid}:{gid} --network none -v \"{dockerWorkDir}:/app\" -v \"{dockerIoDir}:/io\" -w /app openjdk:17 " +
-								"sh -c \"mkdir -p bin && javac -d bin *.java && java -cp bin Main < /io/input.txt > /io/output.txt\"",
+									$"sh -c \"mkdir -p bin && javac -d bin *.java && java -cp bin {mainClass} < /io/input.txt > /io/output.txt\"",
 					RedirectStandardOutput = true,
 					RedirectStandardError = true,
 					UseShellExecute = false,
