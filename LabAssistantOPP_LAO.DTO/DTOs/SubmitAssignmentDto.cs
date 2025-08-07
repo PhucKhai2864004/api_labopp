@@ -15,6 +15,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs
 
         [Required(ErrorMessage = "ZipFile không được để trống.")]
         public IFormFile ZipFile { get; set; }
+        public string Status { get; set; } = "Draft";
     }
 
 }
