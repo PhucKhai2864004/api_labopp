@@ -3,12 +3,12 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy solution and project files
-COPY *.sln ./
-COPY LabAssistantOPP_LAO.WebApi/*.csproj ./LabAssistantOPP_LAO.WebApi/
-COPY LabAssistantOPP_LAO.Services/*.csproj ./LabAssistantOPP_LAO.Services/
-COPY LabAssistantOPP_LAO.DTO/*.csproj ./LabAssistantOPP_LAO.DTO/
-COPY LabAssistantOPP_LAO.Models/*.csproj ./LabAssistantOPP_LAO.Models/
-COPY NewGradingTest/*.csproj ./NewGradingTest/
+COPY LabAssistantOPP_LAO.WebApi/ LabAssistantOPP_LAO.WebApi/
+COPY LabAssistantOPP_LAO.Services/ LabAssistantOPP_LAO.Services/
+COPY LabAssistantOPP_LAO.DTO/ LabAssistantOPP_LAO.DTO/
+COPY LabAssistantOPP_LAO.Models/ LabAssistantOPP_LAO.Models/
+COPY NewGradingTest/ NewGradingTest/
+COPY *.sln .
 
 # Restore NuGet packages
 RUN dotnet restore
