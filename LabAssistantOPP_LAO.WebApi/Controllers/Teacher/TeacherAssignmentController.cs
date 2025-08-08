@@ -119,7 +119,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
                 return StatusCode(500, "Lỗi xử lý file zip: " + ex.Message);
             }
 
-            return Ok(result);
+            return Ok(ApiResponse<Dictionary<string,string>>.SuccessResponse(result,"Return"));
         }
 
 
