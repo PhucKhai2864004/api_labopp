@@ -27,6 +27,8 @@ builder.Services.AddControllers()
 	.AddJsonOptions(options =>
 	{
 		options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+		options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+		options.JsonSerializerOptions.WriteIndented = true;
 	});
 
 builder.Services.AddCors(options =>
@@ -43,12 +45,7 @@ builder.Services.AddScoped<ISubmissionService, SubmissionService>();
 builder.Services.AddSingleton<DockerRunner>();
 builder.Services.AddSingleton<GradingWorkerPool>();
 builder.Services.AddScoped<SubmissionGradingWorker>();//Cần có để mỗi worker dùng
-builder.Services.AddControllers().AddJsonOptions(options =>
-{
-	options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
-	options.JsonSerializerOptions.WriteIndented = true;
 
-});
 
 
 
