@@ -7,7 +7,6 @@ COPY LabAssistantOPP_LAO.WebApi/ LabAssistantOPP_LAO.WebApi/
 COPY LabAssistantOPP_LAO.Services/ LabAssistantOPP_LAO.Services/
 COPY LabAssistantOPP_LAO.DTO/ LabAssistantOPP_LAO.DTO/
 COPY LabAssistantOPP_LAO.Models/ LabAssistantOPP_LAO.Models/
-COPY NewGradingTest/ NewGradingTest/
 COPY *.sln .
 
 # Restore NuGet packages
