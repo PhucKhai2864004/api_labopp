@@ -1,9 +1,11 @@
 ﻿using DotNetCore.CAP;
-using NewGradingTest.Models;
+using LabAssistantOPP_LAO.Models.Entities;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Threading.Channels;
 
-namespace NewGradingTest.grading_system.backend.Workers
+namespace Business_Logic.Interfaces.Workers.Grading
 {
 	public class GradingWorkerPool : ICapSubscribe
 	{

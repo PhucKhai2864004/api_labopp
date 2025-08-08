@@ -1,15 +1,17 @@
-﻿using LabAssistantOPP_LAO.Models.Data;
+﻿using Business_Logic.Interfaces.Workers.Grading;
+using LabAssistantOPP_LAO.DTO.DTOs.Grading;
+using LabAssistantOPP_LAO.Models.Data;
 using LabAssistantOPP_LAO.Models.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using NewGradingTest.DTOs;
-using NewGradingTest.grading_system.backend.Workers;
-using NewGradingTest.Models;
 
-namespace NewGradingTest.Controllers
+
+namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 {
 	[ApiController]
-	[Route("api/[controller]")]
+	[Route("api/test-case")]
+	[Authorize(Roles = "Head Subject,Teacher")]
 	public class ProblemController : ControllerBase
 	{
 		private readonly LabOppContext _context;

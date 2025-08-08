@@ -1,14 +1,15 @@
-﻿using DotNetCore.CAP;
+﻿using Business_Logic.Services.Grading;
+using DotNetCore.CAP;
+using LabAssistantOPP_LAO.DTO.DTOs.Grading;
+using LabAssistantOPP_LAO.Models.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using NewGradingTest.DTOs;
-using NewGradingTest.grading_system.backend.Workers;
-using NewGradingTest.Models;
-using NewGradingTest.Services;
 
-namespace NewGradingTest.Controllers
+namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 {
 	[ApiController]
-	[Route("api/[controller]")]
+	[Route("api/submit")]
+	[Authorize(Roles = "Student")]
 	public class SubmissionController : ControllerBase
 	{
 		private readonly ISubmissionService _submissionService;

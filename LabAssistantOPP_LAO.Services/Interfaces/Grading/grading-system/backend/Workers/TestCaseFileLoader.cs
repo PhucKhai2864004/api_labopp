@@ -1,7 +1,6 @@
 ﻿using LabAssistantOPP_LAO.Models.Entities;
-using NewGradingTest.Models;
 
-namespace NewGradingTest.grading_system.backend.Workers
+namespace Business_Logic.Interfaces.Workers.Grading
 {
 	public static class TestCaseFileLoader
 	{

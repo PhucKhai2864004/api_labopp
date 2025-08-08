@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using NewGradingTest.grading_system.backend.Workers;
+﻿using Business_Logic.Interfaces.Workers.Grading;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
-namespace NewGradingTest.Controllers
+namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 {
 	[ApiController]
 	[Route("api/admin")]
+	[Authorize(Roles = "Admin")]
 	public class AdminController : ControllerBase
 	{
 		private readonly GradingWorkerPool _workerPool;

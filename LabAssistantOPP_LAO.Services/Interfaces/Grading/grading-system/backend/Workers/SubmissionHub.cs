@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using System.Text.RegularExpressions;
 
-namespace NewGradingTest.grading_system.backend.Workers
+namespace Business_Logic.Interfaces.Workers.Grading
 {
 	public class SubmissionHub : Hub
 	{

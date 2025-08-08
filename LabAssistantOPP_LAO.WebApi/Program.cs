@@ -13,6 +13,9 @@ using Business_Logic.Services.Admin;
 using Microsoft.AspNetCore.Http.Features;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.SignalR;
+using Business_Logic.Interfaces.Workers.Grading;
+using Business_Logic.Services.Grading;
+using Business_Logic.Interfaces.Workers.Docker;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +38,27 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
+
+builder.Services.AddScoped<ISubmissionService, SubmissionService>();
+builder.Services.AddSingleton<DockerRunner>();
+builder.Services.AddSingleton<GradingWorkerPool>();
+builder.Services.AddScoped<SubmissionGradingWorker>();//Cần có để mỗi worker dùng
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+	options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+	options.JsonSerializerOptions.WriteIndented = true;
+
+});
+
+
+
+builder.Services.AddCap(x =>
+{
+	x.UseRedis("localhost"); // hoặc cấu hình từ appsettings
+	x.UseInMemoryStorage(); // dùng bộ nhớ tạm (thay bằng EF nếu có DB)
+	x.FailedRetryCount = 3;
+});
+
 builder.Services.AddSignalR();
 
 
@@ -186,5 +210,6 @@ app.MapControllers();
 
 app.MapHub<NotificationHub>("/notificationHub");
 
+app.MapHub<SubmissionHub>("/hubs/submission");
 
 app.Run();

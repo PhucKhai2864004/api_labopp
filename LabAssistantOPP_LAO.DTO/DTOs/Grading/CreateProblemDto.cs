@@ -1,4 +1,4 @@
-﻿namespace NewGradingTest.DTOs
+﻿namespace LabAssistantOPP_LAO.DTO.DTOs.Grading
 {
 	public class CreateProblemDto
 	{
