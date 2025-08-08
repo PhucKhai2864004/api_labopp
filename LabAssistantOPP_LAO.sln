@@ -11,8 +11,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LabAssistantOPP_LAO.DTO", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LabAssistantOPP_LAO.Services", "LabAssistantOPP_LAO.Services\LabAssistantOPP_LAO.Services.csproj", "{CF83D109-4C96-800C-0635-CB8F5AC0D770}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NewGradingTest", "NewGradingTest\NewGradingTest.csproj", "{E21F030E-3FB3-BDAE-F553-5DA1975C4F35}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -35,10 +33,6 @@ Global
 		{CF83D109-4C96-800C-0635-CB8F5AC0D770}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CF83D109-4C96-800C-0635-CB8F5AC0D770}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CF83D109-4C96-800C-0635-CB8F5AC0D770}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E21F030E-3FB3-BDAE-F553-5DA1975C4F35}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E21F030E-3FB3-BDAE-F553-5DA1975C4F35}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E21F030E-3FB3-BDAE-F553-5DA1975C4F35}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E21F030E-3FB3-BDAE-F553-5DA1975C4F35}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,6 +1,7 @@
-﻿using System.Diagnostics;
+﻿using Microsoft.Extensions.Configuration;
+using System.Diagnostics;
 
-namespace NewGradingTest.grading_system.backend.Docker
+namespace Business_Logic.Interfaces.Workers.Docker
 {
 	public class DockerRunner
 	{

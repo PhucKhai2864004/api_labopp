@@ -1,12 +1,11 @@
-﻿using LabAssistantOPP_LAO.Models.Data;
+﻿using LabAssistantOPP_LAO.DTO.DTOs.Grading;
+using LabAssistantOPP_LAO.Models.Data;
 using LabAssistantOPP_LAO.Models.Entities;
 using Microsoft.EntityFrameworkCore;
-using NewGradingTest.DTOs;
-using NewGradingTest.Models;
 using System.IO.Compression;
 using System.Text.RegularExpressions;
 
-namespace NewGradingTest.Services
+namespace Business_Logic.Services.Grading
 {
 	public class SubmissionService : ISubmissionService
 	{

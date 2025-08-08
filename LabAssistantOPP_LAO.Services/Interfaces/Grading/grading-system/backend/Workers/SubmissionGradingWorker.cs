@@ -1,10 +1,11 @@
-﻿using DotNetCore.CAP;
+﻿using Business_Logic.Interfaces.Workers.Docker;
+using Business_Logic.Services.Grading;
+using DotNetCore.CAP;
+using LabAssistantOPP_LAO.Models.Entities;
 using Microsoft.AspNetCore.SignalR;
-using NewGradingTest.grading_system.backend.Docker;
-using NewGradingTest.Models;
-using NewGradingTest.Services;
+using Microsoft.Extensions.Logging;
 
-namespace NewGradingTest.grading_system.backend.Workers
+namespace Business_Logic.Interfaces.Workers.Grading
 {
 	public class SubmissionGradingWorker : ICapSubscribe
 	{

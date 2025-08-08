@@ -1,4 +1,6 @@
-﻿namespace NewGradingTest.DTOs
+﻿using Microsoft.AspNetCore.Http;
+
+namespace LabAssistantOPP_LAO.DTO.DTOs.Grading
 {
 	public class SubmitCodeDto
 	{
