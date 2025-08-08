@@ -61,11 +61,13 @@ CREATE TABLE Lab_Assignment (
     teacher_id VARCHAR(255),
     loc_total INT,
 	status VARCHAR(20) CHECK (status IN ('Pending', 'Active', 'Inactive')),
+	file_id VARCHAR(255),
     created_by VARCHAR(255),
     created_at DATETIME,
     updated_by VARCHAR(255),
     updated_at DATETIME,
-    FOREIGN KEY (teacher_id) REFERENCES [User](id)
+    FOREIGN KEY (teacher_id) REFERENCES [User](id),
+	FOREIGN KEY (file_id) REFERENCES [File](id)
 );
 
 -- Bảng Class
@@ -211,11 +213,12 @@ INSERT INTO Teacher (
 
 
 INSERT INTO Lab_Assignment (
-    id, title, description, teacher_id, loc_total, status, created_by, created_at, updated_by, updated_at
+    id, title, description, teacher_id, loc_total, status, file_id, created_by, created_at, updated_by, updated_at
 ) VALUES
-('lab1', 'OOP Basics', 'Learn about classes and objects', 'HE183210', 120, 'Active', 'HE183210', GETDATE(), 'HE183210', GETDATE()),
-('lab2', 'Inheritance', 'Deep dive into inheritance', 'HE183210', 150, 'Active', 'HE183210', GETDATE(), 'HE183210', GETDATE()),
-('lab3', 'Polymorphism', 'Understanding polymorphism', 'HE183210', 100, 'Inactive', 'HE183210', GETDATE(), 'HE183210', GETDATE());
+('lab1', 'OOP Basics', 'Learn about classes and objects', 'HE183210', 120, 'Active', 'file1', 'HE183210', GETDATE(), 'HE183210', GETDATE()),
+('lab2', 'Inheritance', 'Deep dive into inheritance', 'HE183210', 150, 'Active', 'file2', 'HE183210', GETDATE(), 'HE183210', GETDATE()),
+('lab3', 'Polymorphism', 'Understanding polymorphism', 'HE183210', 100, 'Inactive', 'file3', 'HE183210', GETDATE(), 'HE183210', GETDATE());
+
 
 
 INSERT INTO Class (id, name, subject, semester, academic_year, is_active, teacher_id, loc_to_pass, created_by, created_at, updated_by, updated_at) VALUES
@@ -274,5 +277,3 @@ INSERT INTO TestCaseResult (id, submission_id, test_case_id, actual_output, is_p
 ('tcr1', 'sub1', 'tc1', 'Hello World', 1),
 ('tcr2', 'sub2', 'tc2', 'Area: 25', 1),
 ('tcr3', 'sub3', 'tc3', 'Wrong Output', 0);
-
-

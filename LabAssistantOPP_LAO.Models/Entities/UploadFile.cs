@@ -24,4 +24,6 @@ public partial class UploadFile
     public virtual ICollection<Submission> Submissions { get; set; } = new List<Submission>();
 
     public virtual User? UploadedByNavigation { get; set; }
+
+	public virtual ICollection<LabAssignment> LabAssignments { get; set; } = new List<LabAssignment>();
 }
