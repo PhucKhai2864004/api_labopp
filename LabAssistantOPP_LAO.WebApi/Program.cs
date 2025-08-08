@@ -35,12 +35,17 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        policy
+            .SetIsOriginAllowed(origin =>
+                new Uri(origin).Host.EndsWith("vercel.app") ||
+                origin == "localhost")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials(); // nếu bạn dùng cookie hoặc token
     });
 });
 
+<<<<<<< Tuấn_Dũng
 builder.Services.AddScoped<ISubmissionService, SubmissionService>();
 builder.Services.AddSingleton<DockerRunner>();
 builder.Services.AddSingleton<GradingWorkerPool>();
@@ -55,6 +60,8 @@ builder.Services.AddCap(x =>
 	x.UseInMemoryStorage(); // dùng bộ nhớ tạm (thay bằng EF nếu có DB)
 	x.FailedRetryCount = 3;
 });
+=======
+>>>>>>> main
 
 builder.Services.AddSignalR();
 
@@ -194,6 +201,7 @@ app.UseSwagger();
 
 app.MapGet("/", () => Results.Ok("✅ API is running. Use /swagger to view documentation."));
 
+app.UseStaticFiles();
 
 app.UseCors("AllowFrontend");
 
