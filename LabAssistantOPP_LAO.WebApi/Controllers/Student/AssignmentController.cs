@@ -158,11 +158,15 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
             // Kiểm tra submission
             var existing = await _context.Submissions
                 .FirstOrDefaultAsync(s => s.StudentId == studentId && s.AssignmentId == model.AssignmentId);
-
+            var status = model.Status?.ToLower();
+            if (status != "draft" && status != "submit")
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse("Trạng thái không hợp lệ. Chỉ chấp nhận 'Draft' hoặc 'Submit'."));
+            }
             if (existing != null)
             {
                 existing.ZipCode = fileEntity.Id;
-                existing.Status = "Draft";
+                existing.Status = model.Status;
                 existing.UpdatedAt = DateTime.Now;
                 existing.UpdatedBy = studentId;
                 existing.SubmittedAt = DateTime.Now;
@@ -175,7 +179,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
                     StudentId = studentId,
                     AssignmentId = model.AssignmentId,
                     ZipCode = fileEntity.Id,
-                    Status = "Draft",
+                    Status = model.Status,
                     SubmittedAt = DateTime.Now,
                     CreatedAt = DateTime.Now,
                     CreatedBy = studentId
@@ -260,7 +264,56 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
             return Ok(ApiResponse<int>.SuccessResponse(totalLoc, "Tổng LOC của bạn"));
         }
 
-        
+        [HttpGet("classmates")]
+        public async Task<IActionResult> GetClassmates()
+        {
+            // Lấy userId từ token (identity)
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(ApiResponse<string>.ErrorResponse("Unauthorized"));
+            }
+
+            // Tìm tất cả lớp mà sinh viên này đang học
+            var classIds = await _context.StudentInClasses
+                .Where(sic => sic.StudentId == userId)
+                .Select(sic => sic.ClassId)
+                .ToListAsync();
+
+            if (!classIds.Any())
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse("You are not enrolled in any class"));
+            }
+
+            // Tìm tất cả sinh viên khác học chung các lớp đó
+            var classmateIds = await _context.StudentInClasses
+                .Where(sic => classIds.Contains(sic.ClassId) && sic.StudentId != userId)
+                .Select(sic => sic.StudentId)
+                .Distinct()
+                .ToListAsync();
+
+            // Truy vấn thông tin từ bảng User và Student
+            var classmates = await _context.Users
+                .Where(u => classmateIds.Contains(u.Id))
+                .Join(_context.Students,
+                    user => user.Id,
+                    student => student.Id,
+                    (user, student) => new
+                    {
+                        Id = user.Id,
+                        Name = user.Name,
+                        Email = user.Email,
+                        StudentCode = student.StudentCode,
+                        Major = student.Major,
+                        Phone = student.Phone
+                    })
+                .ToListAsync();
+
+            return Ok(ApiResponse<object>.SuccessResponse(classmates, "Classmates retrieved successfully"));
+        }
+
+
 
 
 
