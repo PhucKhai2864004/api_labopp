@@ -17,7 +17,9 @@ public partial class LabAssignment
 
     public string? Status { get; set; }
 
-    public string? CreatedBy { get; set; }
+	public string? FileId { get; set; }
+
+	public string? CreatedBy { get; set; }
 
     public DateTime? CreatedAt { get; set; }
 
@@ -25,7 +27,8 @@ public partial class LabAssignment
 
     public DateTime? UpdatedAt { get; set; }
 
-    public virtual ICollection<ClassHasLabAssignment> ClassHasLabAssignments { get; set; } = new List<ClassHasLabAssignment>();
+
+	public virtual ICollection<ClassHasLabAssignment> ClassHasLabAssignments { get; set; } = new List<ClassHasLabAssignment>();
 
     public virtual ICollection<StudentLabAssignment> StudentLabAssignments { get; set; } = new List<StudentLabAssignment>();
 
@@ -34,4 +37,6 @@ public partial class LabAssignment
     public virtual User? Teacher { get; set; }
 
     public virtual ICollection<TestCase> TestCases { get; set; } = new List<TestCase>();
+
+	public virtual UploadFile? File { get; set; }
 }

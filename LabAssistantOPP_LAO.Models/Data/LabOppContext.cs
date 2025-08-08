@@ -237,7 +237,11 @@ public partial class LabOppContext : DbContext
             entity.Property(e => e.Description)
                 .HasColumnType("text")
                 .HasColumnName("description");
-            entity.Property(e => e.LocTotal).HasColumnName("loc_total");
+			entity.Property(e => e.FileId)
+				.HasMaxLength(255)
+				.IsUnicode(false)
+				.HasColumnName("file_id");
+			entity.Property(e => e.LocTotal).HasColumnName("loc_total");
             entity.Property(e => e.Status)
                 .HasMaxLength(20)
                 .IsUnicode(false)
@@ -258,7 +262,11 @@ public partial class LabOppContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("updated_by");
 
-            entity.HasOne(d => d.Teacher).WithMany(p => p.LabAssignments)
+			entity.HasOne(d => d.File).WithMany(p => p.LabAssignments)
+				.HasForeignKey(d => d.FileId)
+				.HasConstraintName("FK_LabAssignment_File");
+
+			entity.HasOne(d => d.Teacher).WithMany(p => p.LabAssignments)
                 .HasForeignKey(d => d.TeacherId)
                 .HasConstraintName("FK__Lab_Assig__teach__45F365D3");
         });
