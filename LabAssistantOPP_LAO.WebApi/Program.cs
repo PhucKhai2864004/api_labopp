@@ -45,13 +45,10 @@ builder.Services.AddCors(options =>
     });
 });
 
-<<<<<<< Tuấn_Dũng
 builder.Services.AddScoped<ISubmissionService, SubmissionService>();
 builder.Services.AddSingleton<DockerRunner>();
 builder.Services.AddSingleton<GradingWorkerPool>();
 builder.Services.AddScoped<SubmissionGradingWorker>();//Cần có để mỗi worker dùng
-
-
 
 
 builder.Services.AddCap(x =>
@@ -60,8 +57,7 @@ builder.Services.AddCap(x =>
 	x.UseInMemoryStorage(); // dùng bộ nhớ tạm (thay bằng EF nếu có DB)
 	x.FailedRetryCount = 3;
 });
-=======
->>>>>>> main
+
 
 builder.Services.AddSignalR();
 
