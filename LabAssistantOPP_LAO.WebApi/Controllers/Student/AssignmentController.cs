@@ -83,6 +83,40 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
             return Ok(ApiResponse<AssignmentDetailDto>.SuccessResponse(assignment, "Lấy chi tiết bài lab thành công"));
         }
 
+        [HttpPost("student-lab-assignment")]
+        public async Task<IActionResult> AssignLabToStudent([FromBody] StudentLabAssignmentDto dto)
+        {
+            // Lấy student_id từ token
+            var studentId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return Unauthorized(ApiResponse<string>.ErrorResponse("Không thể xác định sinh viên từ token"));
+            }
+
+            // Kiểm tra xem assignment đã được gán cho sinh viên chưa
+            var existing = await _context.StudentLabAssignments
+                .FirstOrDefaultAsync(sla => sla.AssignmentId == dto.AssignmentId && sla.StudentId == studentId);
+
+            if (existing != null)
+            {
+                return BadRequest(ApiResponse<string>.ErrorResponse("Bạn đã lấy assignment này rồi"));
+            }
+
+            // Tạo bản ghi mới
+            var newRecord = new StudentLabAssignment
+            {
+                Id = Guid.NewGuid().ToString(),
+                AssignmentId = dto.AssignmentId,
+                StudentId = studentId
+            };
+
+            _context.StudentLabAssignments.Add(newRecord);
+            await _context.SaveChangesAsync();
+
+            return Ok(ApiResponse<string>.SuccessResponse(newRecord.Id, "Lấy assignment thành công"));
+        }
+
         [HttpPost("submit")]
         public async Task<IActionResult> SubmitAssignment([FromForm] SubmitAssignmentDto model)
         {
@@ -263,6 +297,60 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
 
             return Ok(ApiResponse<int>.SuccessResponse(totalLoc, "Tổng LOC của bạn"));
         }
+
+        [HttpGet("my-progress")]
+        public async Task<IActionResult> GetMyProgress()
+        {
+            var studentId = User.FindFirst("userId")?.Value;
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return Unauthorized(ApiResponse<string>.ErrorResponse("Không xác định được sinh viên"));
+            }
+
+            // Tổng LOC
+            var totalLoc = await _context.Submissions
+                .Where(s => s.StudentId == studentId && s.LocResult != null)
+                .SumAsync(s => s.LocResult.Value);
+
+            // Tổng assignment của sinh viên
+            var totalAssignments = await _context.StudentLabAssignments
+                .Where(sla => sla.StudentId == studentId)
+                .CountAsync();
+
+            // Tổng bài submit PASS
+            var passedAssignments = await _context.Submissions
+                .Where(s => s.StudentId == studentId && s.Status == "Passed")
+                .Select(s => s.AssignmentId)
+                .Distinct()
+                .CountAsync();
+
+            // Xếp hạng theo LOC
+            var studentLocs = await _context.Submissions
+                .Where(s => s.LocResult != null)
+                .GroupBy(s => s.StudentId)
+                .Select(g => new
+                {
+                    StudentId = g.Key,
+                    TotalLoc = g.Sum(s => s.LocResult.Value)
+                })
+                .OrderByDescending(x => x.TotalLoc)
+                .ToListAsync();
+
+            var rank = studentLocs.FindIndex(s => s.StudentId == studentId) + 1;
+            var totalStudents = studentLocs.Count;
+
+            // Kết quả trả về
+            var result = new Dictionary<string, string>
+            {
+                ["Total LOC"] = $"{totalLoc}/750",
+                ["Assignment"] = $"{passedAssignments}/{totalAssignments}",
+                ["Ranking"] = $"{rank}/{totalStudents}"
+            };
+
+            return Ok(ApiResponse<Dictionary<string, string>>.SuccessResponse(result, "Tiến độ của bạn"));
+        }
+
+
 
         [HttpGet("classmates")]
         public async Task<IActionResult> GetClassmates()
