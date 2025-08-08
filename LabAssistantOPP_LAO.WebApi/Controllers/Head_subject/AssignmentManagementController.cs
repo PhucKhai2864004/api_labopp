@@ -121,6 +121,58 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
             return Ok(ApiResponse<string>.SuccessResponse(id, "Xóa đề bài thành công"));
         }
 
+
+
+        [HttpGet("statistics/all")]
+        public async Task<IActionResult> GetAllClassPassRates()
+        {
+            var allClasses = await _context.Classes.ToListAsync();
+            var resultList = new List<ClassPassRateDto>();
+
+            foreach (var classInfo in allClasses)
+            {
+                var students = await _context.StudentInClasses
+                    .Where(sic => sic.ClassId == classInfo.Id)
+                    .Select(sic => sic.Student)
+                    .ToListAsync();
+
+                int totalStudents = students.Count;
+                int studentsPassed = 0;
+
+                foreach (var student in students)
+                {
+                    var totalLoc = await _context.Submissions
+                        .Where(s => s.StudentId == student.Id &&
+                                    _context.LabAssignments
+                                        .Join(_context.ClassHasLabAssignments,
+                                              la => la.Id,
+                                              chla => chla.AssignmentId,
+                                              (la, chla) => new { la, chla })
+                                        .Any(joined => joined.la.Id == s.AssignmentId && joined.chla.ClassId == classInfo.Id)
+                              )
+                        .SumAsync(s => (int?)s.LocResult ?? 0);
+
+                    if (totalLoc >= 750)
+                    {
+                        studentsPassed++;
+                    }
+                }
+
+                var result = new ClassPassRateDto
+                {
+                    ClassId = classInfo.Id,
+                    ClassName = classInfo.Name,
+                    TotalStudents = totalStudents,
+                    StudentsPassed = studentsPassed,
+                    PassRate = totalStudents == 0 ? 0 : Math.Round((double)studentsPassed / totalStudents * 100, 2)
+                };
+
+                resultList.Add(result);
+            }
+
+            return Ok(ApiResponse<List<ClassPassRateDto>>.SuccessResponse(resultList));
+        }
+
         //Xem thống kê tỉ lệ pass
         [HttpGet("statistics/{classId}")]
         public async Task<IActionResult> GetClassPassRate(string classId)
