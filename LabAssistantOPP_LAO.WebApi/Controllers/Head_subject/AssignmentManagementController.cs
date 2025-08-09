@@ -320,7 +320,8 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
             return Ok(new
             {
                 message = "Tải file thành công",
-                file = uploadFile
+                file = uploadFile,
+                id = uploadFile.Id
             });
         }
 

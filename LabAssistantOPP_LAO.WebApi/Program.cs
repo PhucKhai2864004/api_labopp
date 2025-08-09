@@ -38,7 +38,7 @@ builder.Services.AddCors(options =>
         policy
             .SetIsOriginAllowed(origin =>
                 new Uri(origin).Host.EndsWith("vercel.app") ||
-                origin == "localhost")
+                origin == "http://localhost:5173")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials(); // nếu bạn dùng cookie hoặc token
