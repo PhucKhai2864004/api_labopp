@@ -401,6 +401,32 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
             return Ok(ApiResponse<object>.SuccessResponse(classmates, "Classmates retrieved successfully"));
         }
 
+        [HttpGet("my-classes")]
+        public async Task<IActionResult> GetMyClasses()
+        {
+            var studentId = User.FindFirst("userId")?.Value;
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return Unauthorized(ApiResponse<string>.ErrorResponse("Không xác định được sinh viên"));
+            }
+
+            var classes = await (from sic in _context.StudentInClasses
+                                 join c in _context.Classes on sic.ClassId equals c.Id
+                                 where sic.StudentId == studentId && c.IsActive == true
+                                 select new
+                                 {
+                                     c.Id,
+                                     c.Name,
+                                     c.Subject,
+                                     c.Semester,
+                                     c.AcademicYear,
+                                     c.LocToPass,
+                                     c.TeacherId
+                                 }).ToListAsync();
+
+            return Ok(ApiResponse<object>.SuccessResponse(classes, "Danh sách lớp của bạn"));
+        }
+
 
 
 
