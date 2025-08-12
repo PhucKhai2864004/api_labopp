@@ -2,9 +2,11 @@
 using DotNetCore.CAP;
 using LabAssistantOPP_LAO.DTO.DTOs.Grading;
 using LabAssistantOPP_LAO.Models.Common;
+using LabAssistantOPP_LAO.Models.Data;
 using LabAssistantOPP_LAO.Models.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 {
@@ -16,11 +18,13 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		private readonly ISubmissionService _submissionService;
 		//private readonly SubmissionGradingWorker _worker;
 		private readonly ICapPublisher _capBus;
+		private readonly LabOppContext _context;
 
-		public SubmissionController(ISubmissionService submissionService, ICapPublisher capBus)
+		public SubmissionController(ISubmissionService submissionService, ICapPublisher capBus, LabOppContext context)
 		{
 			_submissionService = submissionService;
 			_capBus = capBus;
+			_context = context;
 		}
 
 		[HttpPost]
@@ -32,12 +36,21 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 			if (submission == null)
 				return BadRequest(ApiResponse<object>.ErrorResponse("Invalid submission"));
 
+			var teacherId = await _context.LabAssignments
+				.Where(a => a.Id == submission.ProblemId) // hoặc join theo quan hệ phù hợp
+				.Select(a => a.TeacherId)
+				.FirstOrDefaultAsync();
+
+			if (string.IsNullOrEmpty(teacherId))
+				return BadRequest(ApiResponse<object>.ErrorResponse("TeacherId not found"));
+
 			var job = new SubmissionJob
 			{
 				SubmissionId = submission.SubmissionId,
 				ProblemId = submission.ProblemId,
 				WorkDir = submission.WorkDir,
-				MainClass = submission.MainClass
+				MainClass = submission.MainClass,
+				TeacherId = teacherId
 			};
 
 			await _capBus.PublishAsync("submission.created", job);

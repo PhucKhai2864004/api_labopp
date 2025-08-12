@@ -12,10 +12,18 @@ namespace Business_Logic.Interfaces.Workers.Grading
 		private readonly IServiceProvider _serviceProvider;
 		private readonly ILogger<GradingWorkerPool> _logger;
 		private readonly BlockingCollection<SubmissionJob> _jobQueue = new();
-		private readonly Dictionary<string, WorkerTaskWrapper> _namedWorkers = new();
+		// Trạng thái pool theo từng giáo viên
+		private readonly Dictionary<string, bool> _teacherRunningStatus = new();
+		// Workers theo giáo viên
+		private readonly Dictionary<string, List<string>> _teacherWorkers = new();
+		// Workers + TeacherId để stop
+		private readonly Dictionary<string, (WorkerTaskWrapper Worker, string TeacherId)> _namedWorkers = new();
 
-		private bool _isRunning = false;
-		public bool IsRunning => _isRunning;
+		public bool IsRunning(string teacherId)
+		{
+			return _teacherRunningStatus.TryGetValue(teacherId, out var running) && running;
+		}
+
 
 		public GradingWorkerPool(IServiceProvider serviceProvider, ILogger<GradingWorkerPool> logger)
 		{
@@ -23,38 +31,41 @@ namespace Business_Logic.Interfaces.Workers.Grading
 			_logger = logger;
 		}
 
-		public void Start(int count, string classCode)
+		public void Start(int count, string classCode, string teacherId)
 		{
-			if (_isRunning) return;
+			if (IsRunning(teacherId)) return;
 
-			_isRunning = true;
-			_logger.LogInformation($"🔄 Starting {count} grading workers for class {classCode}...");
+			_teacherRunningStatus[teacherId] = true;
+			_logger.LogInformation($"🔄 Starting {count} grading workers for class {classCode} (Teacher {teacherId})...");
+
+			_teacherWorkers[teacherId] = new List<string>();
 
 			for (int i = 1; i <= count; i++)
 			{
-				var name = $"Worker_{i}_{classCode}";
-				StartWorker(name);
+				var name = $"Worker_{i}_{classCode}_{teacherId}";
+				StartWorker(name, teacherId);
 			}
 		}
 
-
-		public void Stop()
+		public void StopAllForTeacher(string teacherId)
 		{
-			if (!_isRunning) return;
+			if (!_teacherWorkers.ContainsKey(teacherId)) return;
 
-			_logger.LogInformation("⏹ Stopping all grading workers...");
-			foreach (var worker in _namedWorkers.Values)
+			foreach (var workerName in _teacherWorkers[teacherId])
 			{
-				worker.CancelToken.Cancel(); // ❗ Đây là hành động dừng thực sự
+				if (_namedWorkers.TryGetValue(workerName, out var data))
+				{
+					data.Worker.CancelToken.Cancel();
+					_namedWorkers.Remove(workerName);
+					_logger.LogInformation($"⏹ Stopped worker: {workerName}");
+				}
 			}
 
-			_namedWorkers.Clear();
-			_jobQueue.CompleteAdding();
-			_isRunning = false;
+			_teacherWorkers.Remove(teacherId);
+			_teacherRunningStatus[teacherId] = false;
 		}
 
-
-		public bool StartWorker(string name)
+		public bool StartWorker(string name, string teacherId)
 		{
 			if (_namedWorkers.ContainsKey(name))
 				return false;
@@ -62,36 +73,52 @@ namespace Business_Logic.Interfaces.Workers.Grading
 			var cts = new CancellationTokenSource();
 			var task = Task.Run(() => ProcessQueue(name, cts.Token), cts.Token);
 
-			_namedWorkers[name] = new WorkerTaskWrapper
+			_namedWorkers[name] = (new WorkerTaskWrapper
 			{
 				Task = task,
 				CancelToken = cts
-			};
+			}, teacherId);
 
-			_logger.LogInformation($"▶️ Started worker: {name}");
+			if (!_teacherWorkers.ContainsKey(teacherId))
+				_teacherWorkers[teacherId] = new List<string>();
+
+			_teacherWorkers[teacherId].Add(name);
+
+			_logger.LogInformation($"▶️ Started worker: {name} for teacher {teacherId}");
 			return true;
 		}
 
-		public bool StopWorker(string name)
+		public bool StopWorker(string name, string teacherId)
 		{
-			if (!_namedWorkers.TryGetValue(name, out var worker))
+			if (!_namedWorkers.TryGetValue(name, out var data))
 				return false;
 
-			worker.CancelToken.Cancel();
-			_namedWorkers.Remove(name);
+			if (data.TeacherId != teacherId)
+				throw new UnauthorizedAccessException("You do not own this worker.");
 
+			data.Worker.CancelToken.Cancel();
+			_namedWorkers.Remove(name);
+			_teacherWorkers[teacherId]?.Remove(name);
 			_logger.LogInformation($"⏹ Stopped worker: {name}");
 			return true;
 		}
 
-		public List<string> GetActiveWorkerNames() => _namedWorkers.Keys.ToList();
+		public List<string> GetActiveWorkerNames(string teacherId)
+		{
+			if (_teacherWorkers.TryGetValue(teacherId, out var workers))
+				return workers;
+			return new List<string>();
+		}
+
+		public bool IsWorkerOwnedByTeacher(string name, string teacherId)
+			=> _namedWorkers.TryGetValue(name, out var data) && data.TeacherId == teacherId;
 
 		[CapSubscribe("submission.created")]
 		public void EnqueueJob(SubmissionJob job)
 		{
-			if (!_isRunning)
+			if (!IsRunning(job.TeacherId)) // 👈 check theo teacher
 			{
-				_logger.LogWarning($"⚠️ Pool not running — ignored job {job.SubmissionId}");
+				_logger.LogWarning($"⚠️ Pool for teacher {job.TeacherId} not running — ignored job {job.SubmissionId}");
 				return;
 			}
 
@@ -122,7 +149,6 @@ namespace Business_Logic.Interfaces.Workers.Grading
 			public Task Task { get; set; } = null!;
 			public CancellationTokenSource CancelToken { get; set; } = null!;
 		}
-
 
 	}
 }
