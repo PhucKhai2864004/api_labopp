@@ -1,5 +1,6 @@
 ﻿using Business_Logic.Interfaces.Workers.Grading;
 using LabAssistantOPP_LAO.DTO.DTOs.Grading;
+using LabAssistantOPP_LAO.Models.Common;
 using LabAssistantOPP_LAO.Models.Data;
 using LabAssistantOPP_LAO.Models.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -46,7 +47,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 			_context.LabAssignments.Add(problem);
 			await _context.SaveChangesAsync();
 
-			return Ok(problem);
+			return Ok(ApiResponse<LabAssignment>.SuccessResponse(problem, "Problem created successfully."));
 		}
 
 		[HttpPost("load-from-folder")]
@@ -74,22 +75,23 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 			_context.LabAssignments.Add(problem);
 			await _context.SaveChangesAsync();
 
-			return Ok(problem);
+			return Ok(ApiResponse<LabAssignment>.SuccessResponse(problem, "Problem loaded from folder successfully."));
 		}
 
-		[HttpGet("{id}")]
+		[HttpGet("{id}")]  //Tìm theo id của test case
 		public async Task<IActionResult> Get(string id)
 		{
-			var problem = await _context.LabAssignments
-				.Include(p => p.TestCases)
-				.FirstOrDefaultAsync(p => p.Id == id);
+			var testCase = await _context.TestCases
+				.FirstOrDefaultAsync(tc => tc.Id == id);
 
-			if (problem == null) return NotFound();
+			if (testCase == null)
+				return NotFound(ApiResponse<object>.ErrorResponse("Test case not found."));
 
-			return Ok(problem);
+			return Ok(ApiResponse<TestCase>.SuccessResponse(testCase));
 		}
 
-		[HttpGet("{id}/testcases")]
+
+		[HttpGet("{id}/testcases")] // Lấy tất cả test cases của một bài tập
 		public async Task<IActionResult> GetTestCases(string id)
 		{
 			var testCases = await _context.TestCases
@@ -97,9 +99,9 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 				.ToListAsync();
 
 			if (!testCases.Any())
-				return NotFound("No test cases found for this problem.");
+				return NotFound(ApiResponse<object>.ErrorResponse("No test cases found for this problem."));
 
-			return Ok(testCases);
+			return Ok(ApiResponse<List<TestCase>>.SuccessResponse(testCases));
 		}
 	}
 }
