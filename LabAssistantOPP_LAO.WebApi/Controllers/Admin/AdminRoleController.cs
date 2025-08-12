@@ -8,7 +8,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Admin
 {
 	[Route("api/admin/roles")]
 	[ApiController]
-	[Authorize(Roles = "Admin")]
+	[Authorize(Roles = "Admin,Head Subject")]
 	public class AdminRoleController : ControllerBase
 	{
 		private readonly IRoleService _roleService;
