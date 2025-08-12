@@ -427,9 +427,34 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
             return Ok(ApiResponse<object>.SuccessResponse(classes, "Danh sách lớp của bạn"));
         }
 
+        [HttpGet("download-pdf/{assignmentId}")]
+        public async Task<IActionResult> DownloadPdf(string assignmentId)
+        {
+            // Lấy thông tin file_id từ assignment
+            var assignment = await _context.LabAssignments
+                .FirstOrDefaultAsync(a => a.Id == assignmentId);
 
+            if (assignment == null || string.IsNullOrEmpty(assignment.FileId))
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy file cho assignment này"));
+            }
 
+            // Lấy thông tin file từ bảng File
+            var file = await _context.Files.FirstOrDefaultAsync(f => f.Id == assignment.FileId);
+            if (file == null)
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse("File không tồn tại trong hệ thống"));
+            }
 
+            // Đường dẫn vật lý tới file
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", file.Path.TrimStart('/'));
+            if (!System.IO.File.Exists(filePath))
+            {
+                return NotFound(ApiResponse<string>.ErrorResponse("File không tồn tại trên server"));
+            }
 
+            var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+            return File(fileBytes, file.MimeType, file.OriginName);
+        }
     }
 }

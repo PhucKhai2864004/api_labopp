@@ -9,7 +9,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Admin
 
     [Route("api/admin/accounts")]
     [ApiController]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Head Subject")]
     public class AdminAccountController : ControllerBase
     {
         private readonly IUserManagementService _service;
