@@ -25,44 +25,68 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		[HttpPost]
 		public async Task<IActionResult> Create(CreateProblemDto dto)
 		{
-			var problemId = Guid.NewGuid().ToString();
+			var assignment = await _context.LabAssignments
+				.Include(a => a.TestCases)
+				.FirstOrDefaultAsync(a => a.Id == dto.AssignmentId);
 
-			var problem = new LabAssignment
+			if (assignment == null)
 			{
-				Id = problemId,
-				Title = dto.Title,
-				CreatedAt = DateTime.UtcNow,
-				CreatedBy = "system",
-				UpdatedAt = DateTime.UtcNow,
-				UpdatedBy = "system",
-				TestCases = dto.TestCases.Select((t, index) => new TestCase
-				{
-					Id = $"{problemId}_tc{index + 1}",
-					Input = t.Input,
-					ExpectedOutput = t.ExpectedOutput,
-					AssignmentId = problemId
-				}).ToList()
-			};
+				return NotFound(ApiResponse<object>.ErrorResponse("Assignment not found."));
+			}
 
-			_context.LabAssignments.Add(problem);
+			var currentUser = User.Identity?.Name ?? "system";
+			var now = DateTime.UtcNow;
+
+			if (!string.IsNullOrWhiteSpace(dto.Title))
+			{
+				assignment.Title = dto.Title;
+				assignment.UpdatedAt = now;
+				assignment.UpdatedBy = currentUser;
+			}
+
+			var startingIndex = assignment.TestCases.Count + 1;
+			var newTestCases = dto.TestCases.Select((t, index) => new TestCase
+			{
+				Id = $"{assignment.Id}_tc{startingIndex + index}",
+				Input = t.Input,
+				ExpectedOutput = t.ExpectedOutput,
+				Loc = t.Loc,
+				AssignmentId = assignment.Id,
+				CreatedAt = now,
+				CreatedBy = currentUser,
+				UpdatedAt = now,
+				UpdatedBy = currentUser
+			}).ToList();
+
+			foreach (var tc in newTestCases)
+			{
+				assignment.TestCases.Add(tc);
+			}
+
 			await _context.SaveChangesAsync();
 
-			return Ok(ApiResponse<LabAssignment>.SuccessResponse(problem, "Problem created successfully."));
+			return Ok(ApiResponse<LabAssignment>.SuccessResponse(assignment, "Test cases added successfully."));
 		}
 
+
+
+
+		/// <summary>
+		/// Load Problem từ folder test case
+		/// </summary>
 		[HttpPost("load-from-folder")]
 		public async Task<IActionResult> LoadFromFolder([FromQuery] string problemId, [FromQuery] string folderPath)
 		{
 			var testCases = TestCaseFileLoader.LoadTestCasesFromFolder(folderPath, problemId);
 
-			var problem = new LabAssignment
+			var labAssignment = new LabAssignment
 			{
 				Id = problemId,
 				Title = $"Problem {problemId} (from folder)",
 				CreatedAt = DateTime.UtcNow,
-				CreatedBy = "system",
+				CreatedBy = User.Identity?.Name ?? "system",
 				UpdatedAt = DateTime.UtcNow,
-				UpdatedBy = "system",
+				UpdatedBy = User.Identity?.Name ?? "system",
 				TestCases = testCases.Select((tc, i) => new TestCase
 				{
 					Id = $"{problemId}_tc{i + 1}",
@@ -72,17 +96,19 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 				}).ToList()
 			};
 
-			_context.LabAssignments.Add(problem);
+			_context.LabAssignments.Add(labAssignment);
 			await _context.SaveChangesAsync();
 
-			return Ok(ApiResponse<LabAssignment>.SuccessResponse(problem, "Problem loaded from folder successfully."));
+			return Ok(ApiResponse<LabAssignment>.SuccessResponse(labAssignment, "Problem loaded from folder successfully."));
 		}
 
-		[HttpGet("{id}")]  //Tìm theo id của test case
-		public async Task<IActionResult> Get(string id)
+		/// <summary>
+		/// Lấy thông tin 1 test case theo Id
+		/// </summary>
+		[HttpGet("testcase/{id}")]
+		public async Task<IActionResult> GetTestCase(string id)
 		{
-			var testCase = await _context.TestCases
-				.FirstOrDefaultAsync(tc => tc.Id == id);
+			var testCase = await _context.TestCases.FirstOrDefaultAsync(tc => tc.Id == id);
 
 			if (testCase == null)
 				return NotFound(ApiResponse<object>.ErrorResponse("Test case not found."));
@@ -90,8 +116,10 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 			return Ok(ApiResponse<TestCase>.SuccessResponse(testCase));
 		}
 
-
-		[HttpGet("{id}/testcases")] // Lấy tất cả test cases của một bài tập
+		/// <summary>
+		/// Lấy toàn bộ test case của một problem
+		/// </summary>
+		[HttpGet("{id}/testcases")]
 		public async Task<IActionResult> GetTestCases(string id)
 		{
 			var testCases = await _context.TestCases
