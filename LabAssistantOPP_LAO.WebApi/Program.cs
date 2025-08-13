@@ -29,6 +29,7 @@ builder.Services.AddControllers()
 		options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 		options.JsonSerializerOptions.ReferenceHandler = null;
 		options.JsonSerializerOptions.WriteIndented = true;
+		options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
 	});
 
 builder.Services.AddCors(options =>

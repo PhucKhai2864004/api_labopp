@@ -106,9 +106,10 @@ namespace Business_Logic.Interfaces.Workers.Grading
 		public List<string> GetActiveWorkerNames(string teacherId)
 		{
 			if (_teacherWorkers.TryGetValue(teacherId, out var workers))
-				return workers;
+				return new List<string>(workers); // copy để tránh bị thay đổi ngoài ý muốn
 			return new List<string>();
 		}
+
 
 		public bool IsWorkerOwnedByTeacher(string name, string teacherId)
 			=> _namedWorkers.TryGetValue(name, out var data) && data.TeacherId == teacherId;
