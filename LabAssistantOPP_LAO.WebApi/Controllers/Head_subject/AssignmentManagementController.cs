@@ -107,23 +107,32 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
         }
 
 
-        // ✅ Xóa đề bài
-        [HttpDelete("delete/{id}")]
-        public async Task<IActionResult> DeleteAssignment(string id)
-        {
-            var assignment = await _context.LabAssignments.FindAsync(id);
-            if (assignment == null)
-                return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy đề bài"));
+		// ✅ Xóa đề bài
+		[HttpDelete("delete/{id}")]
+		public async Task<IActionResult> DeleteAssignment(string id)
+		{
+			var assignment = await _context.LabAssignments
+				.Include(a => a.TestCases)
+				.FirstOrDefaultAsync(a => a.Id == id);
 
-            _context.LabAssignments.Remove(assignment);
-            await _context.SaveChangesAsync();
+			if (assignment == null)
+				return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy đề bài"));
 
-            return Ok(ApiResponse<string>.SuccessResponse(id, "Xóa đề bài thành công"));
-        }
+			// Xoá tất cả test case liên quan
+			_context.TestCases.RemoveRange(assignment.TestCases);
+
+			// Xoá assignment
+			_context.LabAssignments.Remove(assignment);
+
+			await _context.SaveChangesAsync();
+
+			return Ok(ApiResponse<string>.SuccessResponse(id, "Xóa đề bài thành công"));
+		}
 
 
 
-        [HttpGet("statistics/all")]
+
+		[HttpGet("statistics/all")]
         public async Task<IActionResult> GetAllClassPassRates()
         {
             var allClasses = await _context.Classes.ToListAsync();

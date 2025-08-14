@@ -74,33 +74,79 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		/// <summary>
 		/// Load Problem từ folder test case
 		/// </summary>
-		[HttpPost("load-from-folder")]
-		public async Task<IActionResult> LoadFromFolder([FromQuery] string problemId, [FromQuery] string folderPath)
+		[HttpPost("load-from-files")]
+		public async Task<IActionResult> LoadFromFiles(
+	[FromForm] string problemId,
+	[FromForm] List<IFormFile> files)
 		{
-			var testCases = TestCaseFileLoader.LoadTestCasesFromFolder(folderPath, problemId);
+			if (files == null || files.Count == 0)
+				return BadRequest(ApiResponse<object>.ErrorResponse("No files uploaded."));
 
-			var labAssignment = new LabAssignment
+			var currentUser = User.Identity?.Name ?? "system";
+			var now = DateTime.UtcNow;
+
+			// Tìm assignment
+			var assignment = await _context.LabAssignments
+				.Include(a => a.TestCases)
+				.FirstOrDefaultAsync(a => a.Id == problemId);
+
+			if (assignment == null)
 			{
-				Id = problemId,
-				Title = $"Problem {problemId} (from folder)",
-				CreatedAt = DateTime.UtcNow,
-				CreatedBy = User.Identity?.Name ?? "system",
-				UpdatedAt = DateTime.UtcNow,
-				UpdatedBy = User.Identity?.Name ?? "system",
-				TestCases = testCases.Select((tc, i) => new TestCase
+				// Nếu không có thì tạo mới
+				assignment = new LabAssignment
 				{
-					Id = $"{problemId}_tc{i + 1}",
-					Input = tc.Input,
-					ExpectedOutput = tc.ExpectedOutput,
-					AssignmentId = problemId
-				}).ToList()
-			};
+					Id = problemId,
+					Title = $"Problem {problemId} (uploaded)",
+					CreatedAt = now,
+					CreatedBy = currentUser,
+					UpdatedAt = now,
+					UpdatedBy = currentUser,
+					TestCases = new List<TestCase>()
+				};
+				_context.LabAssignments.Add(assignment);
+			}
+			else
+			{
+				// Nếu có thì cập nhật
+				assignment.UpdatedAt = now;
+				assignment.UpdatedBy = currentUser;
+			}
 
-			_context.LabAssignments.Add(labAssignment);
+			// Lưu file tạm
+			var tempFolder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+			Directory.CreateDirectory(tempFolder);
+
+			foreach (var file in files)
+			{
+				var filePath = Path.Combine(tempFolder, file.FileName);
+				using (var stream = new FileStream(filePath, FileMode.Create))
+				{
+					await file.CopyToAsync(stream);
+				}
+			}
+
+			// Load test case
+			var testCases = TestCaseFileLoader.LoadTestCasesFromFolder(tempFolder, problemId);
+
+			// Xác định index bắt đầu
+			var startingIndex = assignment.TestCases.Count + 1;
+
+			foreach (var (tc, index) in testCases.Select((tc, i) => (tc, i)))
+			{
+				tc.Id = $"{problemId}_tc{startingIndex + index}";
+				tc.AssignmentId = problemId;
+				tc.CreatedAt = now;
+				tc.CreatedBy = currentUser;
+				tc.UpdatedAt = now;
+				tc.UpdatedBy = currentUser;
+				assignment.TestCases.Add(tc);
+			}
+
 			await _context.SaveChangesAsync();
-
-			return Ok(ApiResponse<LabAssignment>.SuccessResponse(labAssignment, "Problem loaded from folder successfully."));
+			return Ok(ApiResponse<LabAssignment>.SuccessResponse(assignment, "Test cases uploaded successfully."));
 		}
+
+
 
 		/// <summary>
 		/// Lấy thông tin 1 test case theo Id
