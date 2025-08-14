@@ -24,14 +24,14 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		}
 
 		[HttpPost("start-workers")]
-		public IActionResult StartDefaultWorkers([FromQuery] string classCode)
+		public async Task<IActionResult> StartDefaultWorkers([FromQuery] string classCode)
 		{
 			if (string.IsNullOrWhiteSpace(classCode))
 				return BadRequest(ApiResponse<string>.ErrorResponse("ClassCode is required."));
 
 			var teacherId = GetTeacherId();
 			int defaultCount = 5; // mặc định 5 worker
-			_workerPool.Start(defaultCount, classCode, teacherId);
+			await _workerPool.StartAsync(defaultCount, classCode, teacherId);
 
 			return Ok(ApiResponse<string>.SuccessResponse(
 				null,
@@ -40,10 +40,10 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		}
 
 		[HttpPost("stop-workers")]
-		public IActionResult StopWorkers()
+		public async Task<IActionResult> StopWorkers()
 		{
 			var teacherId = GetTeacherId();
-			_workerPool.StopAllForTeacher(teacherId);
+			await _workerPool.StopAllForTeacherAsync(teacherId);
 			return Ok(ApiResponse<string>.SuccessResponse(
 				null,
 				"All your workers stopped."
@@ -51,31 +51,32 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		}
 
 		[HttpGet("status")]
-		public IActionResult Status()
+		public async Task<IActionResult> Status()
 		{
 			var teacherId = GetTeacherId();
 			return Ok(ApiResponse<object>.SuccessResponse(new
 			{
-				running = _workerPool.IsRunning(teacherId)
+				running = await _workerPool.IsRunningAsync(teacherId),
+				classCode = await _workerPool.GetClassCodeAsync(teacherId)
 			}));
 		}
 
 		[HttpPost("start-worker/{name}")]
-		public IActionResult StartNamedWorker(string name)
+		public async Task<IActionResult> StartNamedWorker(string name)
 		{
 			var teacherId = GetTeacherId();
-			if (_workerPool.StartWorker(name, teacherId))
+			if (await _workerPool.StartWorkerAsync(name, teacherId))
 				return Ok(ApiResponse<string>.SuccessResponse(null, $"Worker {name} started."));
 			return BadRequest(ApiResponse<string>.ErrorResponse($"Worker {name} already running."));
 		}
 
 		[HttpPost("stop-worker/{name}")]
-		public IActionResult StopNamedWorker(string name)
+		public async Task<IActionResult> StopNamedWorker(string name)
 		{
 			var teacherId = GetTeacherId();
 			try
 			{
-				if (_workerPool.StopWorker(name, teacherId))
+				if (await _workerPool.StopWorkerAsync(name, teacherId))
 					return Ok(ApiResponse<string>.SuccessResponse(null, $"Worker {name} stopped."));
 				return NotFound(ApiResponse<string>.ErrorResponse($"Worker {name} not found."));
 			}
@@ -86,13 +87,14 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		}
 
 		[HttpGet("workers")]
-		public IActionResult GetWorkers()
+		public async Task<IActionResult> GetWorkers()
 		{
 			var teacherId = GetTeacherId();
 			return Ok(ApiResponse<object>.SuccessResponse(new
 			{
-				running = _workerPool.IsRunning(teacherId),
-				activeWorkers = _workerPool.GetActiveWorkerNames(teacherId)
+				running = await _workerPool.IsRunningAsync(teacherId),
+				classCode = await _workerPool.GetClassCodeAsync(teacherId),
+				activeWorkers = await _workerPool.GetActiveWorkerNamesAsync(teacherId)
 			}));
 		}
 

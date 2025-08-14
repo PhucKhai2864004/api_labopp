@@ -1,4 +1,5 @@
-﻿using DotNetCore.CAP;
+﻿using Business_Logic.Interfaces.Grading.grading_system.backend.Workers;
+using DotNetCore.CAP;
 using LabAssistantOPP_LAO.Models.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -11,14 +12,17 @@ namespace Business_Logic.Interfaces.Workers.Grading
 	{
 		private readonly IServiceProvider _serviceProvider;
 		private readonly ILogger<GradingWorkerPool> _logger;
-		private readonly BlockingCollection<SubmissionJob> _jobQueue = new();
-		// Lưu trạng thái pool + classCode của từng teacher
-		private readonly Dictionary<string, (bool Running, string ClassCode)> _teacherStatus = new();
-		// Workers theo giáo viên
-		private readonly Dictionary<string, List<string>> _teacherWorkers = new();
-		// Workers + TeacherId để stop
-		private readonly Dictionary<string, (WorkerTaskWrapper Worker, string TeacherId)> _namedWorkers = new();
+		private readonly IRedisService _redis;
 
+		// local in-memory queue for jobs (source of truth for job flow)
+		private readonly BlockingCollection<SubmissionJob> _jobQueue = new();
+
+		// runtime-only map so we can cancel tasks; persisted state lives in Redis
+		private readonly ConcurrentDictionary<string, (WorkerTaskWrapper Worker, string TeacherId)> _namedWorkers = new();
+
+		private static readonly TimeSpan RedisTtl = TimeSpan.FromMinutes(5);
+		private const string KeyStatus = "grading:teacher:{0}:status";   // value: { Running: bool, ClassCode: string }
+		private const string KeyWorkers = "grading:teacher:{0}:workers"; // value: ["Worker_1_...","..."]
 
 		public GradingWorkerPool(IServiceProvider serviceProvider, ILogger<GradingWorkerPool> logger)
 		{
@@ -26,79 +30,92 @@ namespace Business_Logic.Interfaces.Workers.Grading
 			_logger = logger;
 		}
 
-		public bool IsRunning(string teacherId)
+		private IRedisService GetRedis()
 		{
-			return _teacherStatus.TryGetValue(teacherId, out var status) && status.Running;
+			var scope = _serviceProvider.CreateScope();
+			return scope.ServiceProvider.GetRequiredService<IRedisService>();
 		}
 
-		public string? GetClassCode(string teacherId)
+		private record TeacherStatus(bool Running, string ClassCode);
+
+		public async Task<bool> IsRunningAsync(string teacherId)
 		{
-			return _teacherStatus.TryGetValue(teacherId, out var status) ? status.ClassCode : null;
+			var redis = GetRedis();
+			var st = await redis.GetAsync<TeacherStatus>(string.Format(KeyStatus, teacherId));
+			return st?.Running == true;
 		}
 
-		public void Start(int count, string classCode, string teacherId)
+		public async Task<string?> GetClassCodeAsync(string teacherId)
 		{
-			if (IsRunning(teacherId))
+			var redis = GetRedis();
+			var st = await redis.GetAsync<TeacherStatus>(string.Format(KeyStatus, teacherId));
+			return st?.ClassCode;
+		}
+
+		public async Task StartAsync(int count, string classCode, string teacherId)
+		{
+			if (await IsRunningAsync(teacherId))
 			{
-				_logger.LogWarning($"⚠️ Teacher {teacherId} already has workers running for class {GetClassCode(teacherId)}. Start request ignored.");
+				_logger.LogWarning("⚠️ Teacher {TeacherId} already has workers running for class {ClassCode}. Start ignored.",
+					teacherId, await GetClassCodeAsync(teacherId));
 				return;
 			}
 
-			_teacherStatus[teacherId] = (true, classCode);
-			_logger.LogInformation($"🔄 Starting {count} grading workers for class {classCode} (Teacher {teacherId})...");
-
-			_teacherWorkers[teacherId] = new List<string>();
-
+			var workers = new List<string>();
 			for (int i = 1; i <= count; i++)
 			{
 				var name = $"Worker_{i}_{classCode}_{teacherId}";
-				StartWorker(name, teacherId);
+				StartWorkerInternal(name, teacherId);
+				workers.Add(name);
 			}
+
+			var redis = GetRedis();
+			await redis.SetAsync(string.Format(KeyStatus, teacherId), new TeacherStatus(true, classCode), RedisTtl);
+			await redis.SetAsync(string.Format(KeyWorkers, teacherId), workers, RedisTtl);
+
+			_logger.LogInformation("🔄 Started {Count} grading workers for class {ClassCode} (Teacher {TeacherId})", count, classCode, teacherId);
 		}
 
-		public void StopAllForTeacher(string teacherId)
+		public async Task StopAllForTeacherAsync(string teacherId)
 		{
-			if (!_teacherWorkers.ContainsKey(teacherId)) return;
-
-			foreach (var workerName in _teacherWorkers[teacherId])
+			foreach (var kvp in _namedWorkers.Where(x => x.Value.TeacherId == teacherId).ToArray())
 			{
-				if (_namedWorkers.TryGetValue(workerName, out var data))
-				{
-					data.Worker.CancelToken.Cancel();
-					_namedWorkers.Remove(workerName);
-					_logger.LogInformation($"⏹ Stopped worker: {workerName}");
-				}
+				kvp.Value.Worker.CancelToken.Cancel();
+				_namedWorkers.TryRemove(kvp.Key, out _);
+				_logger.LogInformation("⏹ Stopped worker: {Name}", kvp.Key);
 			}
 
-			_teacherWorkers.Remove(teacherId);
-			if (_teacherStatus.ContainsKey(teacherId))
-				_teacherStatus[teacherId] = (false, _teacherStatus[teacherId].ClassCode);
+			var redis = GetRedis();
+			await redis.RemoveAsync(string.Format(KeyWorkers, teacherId));
+			await redis.SetAsync(string.Format(KeyStatus, teacherId),
+				new TeacherStatus(false, (await GetClassCodeAsync(teacherId)) ?? string.Empty),
+				RedisTtl);
 		}
 
-		public bool StartWorker(string name, string teacherId)
+		public async Task<bool> StartWorkerAsync(string name, string teacherId)
 		{
 			if (_namedWorkers.ContainsKey(name))
 				return false;
 
-			var cts = new CancellationTokenSource();
-			var task = Task.Run(() => ProcessQueue(name, cts.Token), cts.Token);
+			StartWorkerInternal(name, teacherId);
 
-			_namedWorkers[name] = (new WorkerTaskWrapper
+			var redis = GetRedis();
+			var keyWorkers = string.Format(KeyWorkers, teacherId);
+			var list = await redis.GetAsync<List<string>>(keyWorkers) ?? new List<string>();
+			if (!list.Contains(name)) list.Add(name);
+			await redis.SetAsync(keyWorkers, list, RedisTtl);
+
+			var statusKey = string.Format(KeyStatus, teacherId);
+			var st = await redis.GetAsync<TeacherStatus>(statusKey);
+			if (st is null || !st.Running)
 			{
-				Task = task,
-				CancelToken = cts
-			}, teacherId);
-
-			if (!_teacherWorkers.ContainsKey(teacherId))
-				_teacherWorkers[teacherId] = new List<string>();
-
-			_teacherWorkers[teacherId].Add(name);
-
-			_logger.LogInformation($"▶️ Started worker: {name} for teacher {teacherId}");
+				var classCode = st?.ClassCode ?? ExtractClassCodeFromWorker(name, teacherId) ?? "";
+				await redis.SetAsync(statusKey, new TeacherStatus(true, classCode), RedisTtl);
+			}
 			return true;
 		}
 
-		public bool StopWorker(string name, string teacherId)
+		public async Task<bool> StopWorkerAsync(string name, string teacherId)
 		{
 			if (!_namedWorkers.TryGetValue(name, out var data))
 				return false;
@@ -107,49 +124,90 @@ namespace Business_Logic.Interfaces.Workers.Grading
 				throw new UnauthorizedAccessException("You do not own this worker.");
 
 			data.Worker.CancelToken.Cancel();
-			_namedWorkers.Remove(name);
-			_teacherWorkers[teacherId]?.Remove(name);
-			_logger.LogInformation($"⏹ Stopped worker: {name}");
+			_namedWorkers.TryRemove(name, out _);
+
+			var redis = GetRedis();
+			var keyWorkers = string.Format(KeyWorkers, teacherId);
+			var list = await redis.GetAsync<List<string>>(keyWorkers) ?? new List<string>();
+			list.Remove(name);
+			await redis.SetAsync(keyWorkers, list, RedisTtl);
+
 			return true;
 		}
 
-		public List<string> GetActiveWorkerNames(string teacherId)
+		public Task<List<string>> GetActiveWorkerNamesAsync(string teacherId)
 		{
-			if (_teacherWorkers.TryGetValue(teacherId, out var workers))
-				return new List<string>(workers);
-			return new List<string>();
+			var redis = GetRedis();
+			return redis.GetAsync<List<string>>(string.Format(KeyWorkers, teacherId))
+				.ContinueWith(t => t.Result ?? new List<string>());
 		}
 
-		public bool IsWorkerOwnedByTeacher(string name, string teacherId)
-			=> _namedWorkers.TryGetValue(name, out var data) && data.TeacherId == teacherId;
+		private void StartWorkerInternal(string name, string teacherId)
+		{
+			var cts = new CancellationTokenSource();
+			var task = Task.Run(() => ProcessQueue(name, teacherId, cts.Token), cts.Token);
+
+			_namedWorkers[name] = (new WorkerTaskWrapper
+			{
+				Task = task,
+				CancelToken = cts
+			}, teacherId);
+
+			_logger.LogInformation("▶️ Started worker: {Name} for teacher {TeacherId}", name, teacherId);
+		}
+
+		private static string? ExtractClassCodeFromWorker(string workerName, string teacherId)
+		{
+			var parts = workerName.Split('_');
+			if (parts.Length >= 4)
+				return parts[2];
+			return null;
+		}
+
+		private async Task RefreshTtlAsync(string teacherId)
+		{
+			var redis = GetRedis();
+			await redis.KeyExpireAsync(string.Format(KeyStatus, teacherId), RedisTtl);
+			await redis.KeyExpireAsync(string.Format(KeyWorkers, teacherId), RedisTtl);
+		}
 
 		[CapSubscribe("submission.created")]
-		public void EnqueueJob(SubmissionJob job)
+		public async Task EnqueueJob(SubmissionJob job)
 		{
-			if (!IsRunning(job.TeacherId)) // 👈 check theo teacher
+			if (!await IsRunningAsync(job.TeacherId))
 			{
-				_logger.LogWarning($"⚠️ Pool for teacher {job.TeacherId} not running — ignored job {job.SubmissionId}");
+				_logger.LogWarning("⚠️ Pool for teacher {TeacherId} not running — ignored job {SubmissionId}",
+					job.TeacherId, job.SubmissionId);
 				return;
 			}
 
-			_logger.LogInformation($"[Queue] Enqueued job {job.SubmissionId}");
+			_logger.LogInformation("[Queue] Enqueued job {SubmissionId}", job.SubmissionId);
 			_jobQueue.Add(job);
 		}
 
-		private async Task ProcessQueue(string workerName, CancellationToken token)
+		private async Task ProcessQueue(string workerName, string teacherId, CancellationToken token)
 		{
-			foreach (var job in _jobQueue.GetConsumingEnumerable(token))
+			while (!token.IsCancellationRequested)
 			{
 				try
 				{
-					using var scope = _serviceProvider.CreateScope();
-					var worker = scope.ServiceProvider.GetRequiredService<SubmissionGradingWorker>();
-					_logger.LogInformation($"[{workerName}] Processing submission {job.SubmissionId}");
-					await worker.HandleAsync(job);
+					if (_jobQueue.TryTake(out var job, millisecondsTimeout: 3000, cancellationToken: token))
+					{
+						using var scope = _serviceProvider.CreateScope();
+						var worker = scope.ServiceProvider.GetRequiredService<SubmissionGradingWorker>();
+						_logger.LogInformation("[{Worker}] Processing submission {SubmissionId}", workerName, job.SubmissionId);
+						await worker.HandleAsync(job);
+					}
+					await RefreshTtlAsync(teacherId);
+				}
+				catch (OperationCanceledException)
+				{
+					break;
 				}
 				catch (Exception ex)
 				{
-					_logger.LogError(ex, $"[{workerName}] Error processing job");
+					_logger.LogError(ex, "[{Worker}] Error processing job", workerName);
+					await Task.Delay(500, token);
 				}
 			}
 		}
