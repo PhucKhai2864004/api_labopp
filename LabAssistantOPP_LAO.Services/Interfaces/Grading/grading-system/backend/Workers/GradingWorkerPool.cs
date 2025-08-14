@@ -12,17 +12,12 @@ namespace Business_Logic.Interfaces.Workers.Grading
 		private readonly IServiceProvider _serviceProvider;
 		private readonly ILogger<GradingWorkerPool> _logger;
 		private readonly BlockingCollection<SubmissionJob> _jobQueue = new();
-		// Trạng thái pool theo từng giáo viên
-		private readonly Dictionary<string, bool> _teacherRunningStatus = new();
+		// Lưu trạng thái pool + classCode của từng teacher
+		private readonly Dictionary<string, (bool Running, string ClassCode)> _teacherStatus = new();
 		// Workers theo giáo viên
 		private readonly Dictionary<string, List<string>> _teacherWorkers = new();
 		// Workers + TeacherId để stop
 		private readonly Dictionary<string, (WorkerTaskWrapper Worker, string TeacherId)> _namedWorkers = new();
-
-		public bool IsRunning(string teacherId)
-		{
-			return _teacherRunningStatus.TryGetValue(teacherId, out var running) && running;
-		}
 
 
 		public GradingWorkerPool(IServiceProvider serviceProvider, ILogger<GradingWorkerPool> logger)
@@ -31,11 +26,25 @@ namespace Business_Logic.Interfaces.Workers.Grading
 			_logger = logger;
 		}
 
+		public bool IsRunning(string teacherId)
+		{
+			return _teacherStatus.TryGetValue(teacherId, out var status) && status.Running;
+		}
+
+		public string? GetClassCode(string teacherId)
+		{
+			return _teacherStatus.TryGetValue(teacherId, out var status) ? status.ClassCode : null;
+		}
+
 		public void Start(int count, string classCode, string teacherId)
 		{
-			if (IsRunning(teacherId)) return;
+			if (IsRunning(teacherId))
+			{
+				_logger.LogWarning($"⚠️ Teacher {teacherId} already has workers running for class {GetClassCode(teacherId)}. Start request ignored.");
+				return;
+			}
 
-			_teacherRunningStatus[teacherId] = true;
+			_teacherStatus[teacherId] = (true, classCode);
 			_logger.LogInformation($"🔄 Starting {count} grading workers for class {classCode} (Teacher {teacherId})...");
 
 			_teacherWorkers[teacherId] = new List<string>();
@@ -62,7 +71,8 @@ namespace Business_Logic.Interfaces.Workers.Grading
 			}
 
 			_teacherWorkers.Remove(teacherId);
-			_teacherRunningStatus[teacherId] = false;
+			if (_teacherStatus.ContainsKey(teacherId))
+				_teacherStatus[teacherId] = (false, _teacherStatus[teacherId].ClassCode);
 		}
 
 		public bool StartWorker(string name, string teacherId)
@@ -106,10 +116,9 @@ namespace Business_Logic.Interfaces.Workers.Grading
 		public List<string> GetActiveWorkerNames(string teacherId)
 		{
 			if (_teacherWorkers.TryGetValue(teacherId, out var workers))
-				return new List<string>(workers); // copy để tránh bị thay đổi ngoài ý muốn
+				return new List<string>(workers);
 			return new List<string>();
 		}
-
 
 		public bool IsWorkerOwnedByTeacher(string name, string teacherId)
 			=> _namedWorkers.TryGetValue(name, out var data) && data.TeacherId == teacherId;
