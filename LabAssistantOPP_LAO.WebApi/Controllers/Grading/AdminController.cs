@@ -24,13 +24,18 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		}
 
 		[HttpPost("start-workers")]
-		public IActionResult StartDefaultWorkers([FromQuery] string classCode = "DEFAULT", [FromQuery] int count = 3)
+		public IActionResult StartDefaultWorkers([FromQuery] string classCode)
 		{
+			if (string.IsNullOrWhiteSpace(classCode))
+				return BadRequest(ApiResponse<string>.ErrorResponse("ClassCode is required."));
+
 			var teacherId = GetTeacherId();
-			_workerPool.Start(count, classCode, teacherId);
+			int defaultCount = 5; // mặc định 5 worker
+			_workerPool.Start(defaultCount, classCode, teacherId);
+
 			return Ok(ApiResponse<string>.SuccessResponse(
 				null,
-				$"Started {count} workers for class {classCode} (Teacher {teacherId})"
+				$"Started {defaultCount} workers for class {classCode} (Teacher {teacherId})"
 			));
 		}
 
