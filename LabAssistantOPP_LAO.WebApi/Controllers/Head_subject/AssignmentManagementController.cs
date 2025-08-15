@@ -35,7 +35,8 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
                     Title = a.Title,
                     Description = a.Description,
                     LocTotal = a.LocTotal,
-                    TeacherId = a.TeacherId
+                    TeacherId = a.TeacherId,
+                    Status = a.Status
                 })
                 .ToListAsync();
 
