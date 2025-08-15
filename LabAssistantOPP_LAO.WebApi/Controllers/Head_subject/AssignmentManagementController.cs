@@ -72,7 +72,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
             _context.LabAssignments.Add(assignment);
             await _context.SaveChangesAsync();
 
-            return Ok(ApiResponse<string>.SuccessResponse(newId, "Thêm đề bài thành công"));
+            return Ok(ApiResponse<string>.SuccessResponse(assignment.Id, "Thêm đề bài thành công"));
         }
 
 
