@@ -428,6 +428,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
         }
 
         [HttpGet("download-pdf/{assignmentId}")]
+        [Authorize(Roles = "Student,Head Subject")]
         public async Task<IActionResult> DownloadPdf(string assignmentId)
         {
             // Lấy thông tin file_id từ assignment
