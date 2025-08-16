@@ -70,8 +70,6 @@ namespace Business_Logic.Services.Grading
 			}
 			Directory.CreateDirectory(folder);
 
-			Directory.CreateDirectory(folder);
-
 			// 2. Lưu file zip vào ổ đĩa
 			var zipPath = Path.Combine(folder, "code.zip");
 			using (var fs = new FileStream(zipPath, FileMode.Create))
@@ -120,7 +118,7 @@ namespace Business_Logic.Services.Grading
 				StudentId = dto.StudentId,
 				AssignmentId = dto.ProblemId,
 				ZipCode = uploadFile.Id, // bỏ qua nếu bạn không lưu File record
-				Status = "Draft",
+				Status = dto.Status,
 				SubmittedAt = DateTime.UtcNow,
 				CreatedBy = dto.StudentId,
 				CreatedAt = DateTime.UtcNow,

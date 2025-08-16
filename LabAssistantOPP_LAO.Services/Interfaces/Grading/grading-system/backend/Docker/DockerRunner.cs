@@ -30,8 +30,8 @@ namespace Business_Logic.Interfaces.Workers.Docker
 				StartInfo = new ProcessStartInfo
 				{
 					FileName = "docker",
-					Arguments = $"run --rm --user {uid}:{gid} --network none -v \"{dockerWorkDir}:/app\" -v \"{dockerIoDir}:/io\" -w /app openjdk:17 " +
-									$"sh -c \"mkdir -p bin && javac -d bin *.java && java -cp bin {mainClass} < /io/input.txt > /io/output.txt\"",
+					Arguments = $"run --rm --user {uid}:{gid} --network none -v \"{dockerWorkDir}:/app\" -v \"{dockerIoDir}:/io\" -w /app my-openjdk17 " +
+									$"sh -c \"mkdir -p bin && javac -d bin $(find . -name \"*.java\") && java -cp bin {mainClass} < /io/input.txt > /io/output.txt\"",
 					RedirectStandardOutput = true,
 					RedirectStandardError = true,
 					UseShellExecute = false,

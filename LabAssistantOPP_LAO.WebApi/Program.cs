@@ -16,6 +16,8 @@ using Microsoft.AspNetCore.SignalR;
 using Business_Logic.Interfaces.Workers.Grading;
 using Business_Logic.Services.Grading;
 using Business_Logic.Interfaces.Workers.Docker;
+using StackExchange.Redis;
+using Business_Logic.Interfaces.Grading.grading_system.backend.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,8 +29,9 @@ builder.Services.AddControllers()
 	.AddJsonOptions(options =>
 	{
 		options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-		options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+		options.JsonSerializerOptions.ReferenceHandler = null;
 		options.JsonSerializerOptions.WriteIndented = true;
+		options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
 	});
 
 builder.Services.AddCors(options =>
@@ -49,6 +52,15 @@ builder.Services.AddScoped<ISubmissionService, SubmissionService>();
 builder.Services.AddSingleton<DockerRunner>();
 builder.Services.AddSingleton<GradingWorkerPool>();
 builder.Services.AddScoped<SubmissionGradingWorker>();//Cần có để mỗi worker dùng
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+	var configuration = sp.GetRequiredService<IConfiguration>();
+	var redisConnectionString = configuration.GetConnectionString("Redis");
+	return ConnectionMultiplexer.Connect(redisConnectionString);
+});
+
+builder.Services.AddScoped<IRedisService, RedisService>();
 
 
 builder.Services.AddCap(x =>

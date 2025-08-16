@@ -112,7 +112,9 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> DeleteAssignment(string id)
         {
-            var assignment = await _context.LabAssignments.FindAsync(id);
+            var assignment = await _context.LabAssignments
+				.Include(a => a.TestCases)
+				.FirstOrDefaultAsync(a => a.Id == id);
             if (assignment == null)
                 return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy đề bài"));
             // Xóa bản ghi liên quan trong Class_Has_Lab_Assignment
@@ -125,15 +127,21 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
                 .Where(sa => sa.AssignmentId == id);
             _context.StudentLabAssignments.RemoveRange(studentAssignments);
 
-            _context.LabAssignments.Remove(assignment);
-            await _context.SaveChangesAsync();
+			// Xoá tất cả test case liên quan
+			_context.TestCases.RemoveRange(assignment.TestCases);
 
-            return Ok(ApiResponse<string>.SuccessResponse(id, "Xóa đề bài thành công"));
-        }
+			// Xoá assignment
+			_context.LabAssignments.Remove(assignment);
+
+			await _context.SaveChangesAsync();
+
+			return Ok(ApiResponse<string>.SuccessResponse(id, "Xóa đề bài thành công"));
+		}
 
 
 
-        [HttpGet("statistics/all")]
+
+		[HttpGet("statistics/all")]
         public async Task<IActionResult> GetAllClassPassRates()
         {
             var allClasses = await _context.Classes.ToListAsync();
@@ -289,53 +297,61 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
         }
 
 
-        [HttpPost("pdf")]
-        public async Task<IActionResult> UploadPdf(IFormFile file, [FromForm] string uploadedBy)
-        {
-            if (file == null || file.Length == 0)
-                return BadRequest("File không tồn tại");
+		[HttpPost("pdf")]
+		public async Task<IActionResult> UploadPdf(IFormFile file, [FromForm] string uploadedBy, [FromForm] string assignmentId)
+		{
+			if (file == null || file.Length == 0)
+				return BadRequest("File không tồn tại");
 
-            if (file.ContentType != "application/pdf")
-                return BadRequest("Chỉ hỗ trợ file PDF");
+			if (file.ContentType != "application/pdf")
+				return BadRequest("Chỉ hỗ trợ file PDF");
 
-            var fileId = Guid.NewGuid().ToString();
-            var fileName = $"{fileId}.pdf";
-            var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "pdf");
+			var fileId = Guid.NewGuid().ToString();
+			var fileName = $"{fileId}.pdf";
+			var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "pdf");
 
-            if (!Directory.Exists(uploadPath))
-                Directory.CreateDirectory(uploadPath);
+			if (!Directory.Exists(uploadPath))
+				Directory.CreateDirectory(uploadPath);
 
-            var filePath = Path.Combine(uploadPath, fileName);
+			var filePath = Path.Combine(uploadPath, fileName);
 
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
+			using (var stream = new FileStream(filePath, FileMode.Create))
+			{
+				await file.CopyToAsync(stream);
+			}
 
-            var uploadFile = new UploadFile
-            {
-                Id = fileId,
-                OriginName = file.FileName,
-                Name = fileName,
-                Path = $"/uploads/pdf/{fileName}",
-                MimeType = file.ContentType,
-                Size = (int)file.Length,
-                UploadedBy = uploadedBy,
-                UploadedAt = DateTime.Now
-            };
+			var uploadFile = new UploadFile
+			{
+				Id = fileId,
+				OriginName = file.FileName,
+				Name = fileName,
+				Path = $"/uploads/pdf/{fileName}",
+				MimeType = file.ContentType,
+				Size = (int)file.Length,
+				UploadedBy = uploadedBy,
+				UploadedAt = DateTime.Now
+			};
 
-            _context.Files.Add(uploadFile);
-            await _context.SaveChangesAsync();
+			// Gắn vào LabAssignment
+			var labAssignment = await _context.LabAssignments.FindAsync(assignmentId);
+			if (labAssignment == null)
+				return BadRequest("Assignment không tồn tại");
 
-            return Ok(new
-            {
-                message = "Tải file thành công",
-                file = uploadFile,
-                id = uploadFile.Id
-            });
-        }
+			uploadFile.LabAssignments.Add(labAssignment);
 
-        [HttpPost]
+			_context.Files.Add(uploadFile);
+			await _context.SaveChangesAsync();
+
+			return Ok(new
+			{
+				message = "Tải file thành công",
+				file = uploadFile,
+				id = uploadFile.Id
+			});
+		}
+
+
+		[HttpPost]
         public async Task<IActionResult> AddPromt([FromBody] PromtCreateDto dto)
         {
             if (dto == null)

@@ -10,6 +10,6 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Grading
 
 		public IFormFile ZipFile { get; set; } = null!;
 
-		public string? MainClass { get; set; } // mặc định là "Main"
+		public string Status { get; set; } = "Draft";
 	}
 }

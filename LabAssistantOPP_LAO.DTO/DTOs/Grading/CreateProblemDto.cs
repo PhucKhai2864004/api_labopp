@@ -2,6 +2,7 @@
 {
 	public class CreateProblemDto
 	{
+		public string AssignmentId { get; set; }
 		public string Title { get; set; }
 		public List<TestCaseDto> TestCases { get; set; }
 	}
@@ -10,6 +11,7 @@
 	{
 		public string Input { get; set; }
 		public string ExpectedOutput { get; set; }
+		public int? Loc { get; set; }
 	}
 
 }

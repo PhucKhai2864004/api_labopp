@@ -1,4 +1,5 @@
 ﻿using Business_Logic.Interfaces.Workers.Grading;
+using LabAssistantOPP_LAO.Models.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -6,7 +7,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 {
 	[ApiController]
 	[Route("api/admin")]
-	[Authorize(Roles = "Admin")]
+	[Authorize(Roles = "Teacher")]
 	public class AdminController : ControllerBase
 	{
 		private readonly GradingWorkerPool _workerPool;
@@ -16,48 +17,85 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 			_workerPool = workerPool;
 		}
 
-		[HttpPost("start-workers")]
-		public IActionResult StartDefaultWorkers([FromQuery] string classCode = "DEFAULT", [FromQuery] int count = 3)
+		private string GetTeacherId()
 		{
-			_workerPool.Start(count, classCode);
-			return Ok($"Started {count} workers for class {classCode}");
+			return User.FindFirst("userId")?.Value
+				?? throw new UnauthorizedAccessException("Teacher ID not found in token");
 		}
 
+		[HttpPost("start-workers")]
+		public async Task<IActionResult> StartDefaultWorkers([FromQuery] string classCode)
+		{
+			if (string.IsNullOrWhiteSpace(classCode))
+				return BadRequest(ApiResponse<string>.ErrorResponse("ClassCode is required."));
+
+			var teacherId = GetTeacherId();
+			int defaultCount = 5; // mặc định 5 worker
+			await _workerPool.StartAsync(defaultCount, classCode, teacherId);
+
+			return Ok(ApiResponse<string>.SuccessResponse(
+				null,
+				$"Started {defaultCount} workers for class {classCode} (Teacher {teacherId})"
+			));
+		}
 
 		[HttpPost("stop-workers")]
-		public IActionResult StopWorkers()
+		public async Task<IActionResult> StopWorkers()
 		{
-			_workerPool.Stop();
-			return Ok("Workers stopped.");
+			var teacherId = GetTeacherId();
+			await _workerPool.StopAllForTeacherAsync(teacherId);
+			return Ok(ApiResponse<string>.SuccessResponse(
+				null,
+				"All your workers stopped."
+			));
 		}
 
 		[HttpGet("status")]
-		public IActionResult Status()
+		public async Task<IActionResult> Status()
 		{
-			return Ok(new { running = _workerPool.IsRunning });
+			var teacherId = GetTeacherId();
+			return Ok(ApiResponse<object>.SuccessResponse(new
+			{
+				running = await _workerPool.IsRunningAsync(teacherId),
+				classCode = await _workerPool.GetClassCodeAsync(teacherId)
+			}));
 		}
 
 		[HttpPost("start-worker/{name}")]
-		public IActionResult StartNamedWorker(string name) =>
-			_workerPool.StartWorker(name)
-				? Ok($"Worker {name} started.")
-				: BadRequest($"Worker {name} already running.");
+		public async Task<IActionResult> StartNamedWorker(string name)
+		{
+			var teacherId = GetTeacherId();
+			if (await _workerPool.StartWorkerAsync(name, teacherId))
+				return Ok(ApiResponse<string>.SuccessResponse(null, $"Worker {name} started."));
+			return BadRequest(ApiResponse<string>.ErrorResponse($"Worker {name} already running."));
+		}
 
 		[HttpPost("stop-worker/{name}")]
-		public IActionResult StopNamedWorker(string name) =>
-			_workerPool.StopWorker(name)
-				? Ok($"Worker {name} stopped.")
-				: NotFound($"Worker {name} not found.");
-
+		public async Task<IActionResult> StopNamedWorker(string name)
+		{
+			var teacherId = GetTeacherId();
+			try
+			{
+				if (await _workerPool.StopWorkerAsync(name, teacherId))
+					return Ok(ApiResponse<string>.SuccessResponse(null, $"Worker {name} stopped."));
+				return NotFound(ApiResponse<string>.ErrorResponse($"Worker {name} not found."));
+			}
+			catch (UnauthorizedAccessException)
+			{
+				return Forbid();
+			}
+		}
 
 		[HttpGet("workers")]
-		public IActionResult GetWorkers()
+		public async Task<IActionResult> GetWorkers()
 		{
-			return Ok(new
+			var teacherId = GetTeacherId();
+			return Ok(ApiResponse<object>.SuccessResponse(new
 			{
-				running = _workerPool.IsRunning,
-				activeWorkers = _workerPool.GetActiveWorkerNames()
-			});
+				running = await _workerPool.IsRunningAsync(teacherId),
+				classCode = await _workerPool.GetClassCodeAsync(teacherId),
+				activeWorkers = await _workerPool.GetActiveWorkerNamesAsync(teacherId)
+			}));
 		}
 
 	}
