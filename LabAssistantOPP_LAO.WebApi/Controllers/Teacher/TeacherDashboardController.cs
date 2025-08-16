@@ -41,7 +41,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
         public async Task<IActionResult> GetTeacherClassCount()
         {
             // Lấy userId từ JWT token
-            var userId = User.FindFirst("id")?.Value;
+            var userId = User.FindFirst("userId")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized(ApiResponse<object>.ErrorResponse("Không tìm thấy userId trong token"));

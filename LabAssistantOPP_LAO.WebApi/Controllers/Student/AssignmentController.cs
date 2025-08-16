@@ -428,7 +428,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
         }
 
         [HttpGet("download-pdf/{assignmentId}")]
-        [Authorize(Roles = "Student,Head Subject")]
+        [AllowAnonymous]
         public async Task<IActionResult> DownloadPdf(string assignmentId)
         {
             // Lấy thông tin file_id từ assignment
@@ -448,7 +448,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
             }
 
             // Đường dẫn vật lý tới file
-            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", file.Path.TrimStart('/'));
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", file.Path);
             if (!System.IO.File.Exists(filePath))
             {
                 return NotFound(ApiResponse<string>.ErrorResponse("File không tồn tại trên server"));
