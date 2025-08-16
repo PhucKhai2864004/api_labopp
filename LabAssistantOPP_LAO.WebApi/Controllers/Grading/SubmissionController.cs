@@ -36,8 +36,18 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 			if (submission == null)
 				return BadRequest(ApiResponse<object>.ErrorResponse("Invalid submission"));
 
+			// 🔴 Nếu là Draft thì không publish job để chấm
+			if (dto.Status == "Draft")
+			{
+				return Ok(ApiResponse<object>.SuccessResponse(
+					new { submissionId },
+					"Submission saved as Draft. It will not be graded."
+				));
+			}
+
+			// Nếu là Submit thì mới chấm
 			var teacherId = await _context.LabAssignments
-				.Where(a => a.Id == submission.ProblemId) // hoặc join theo quan hệ phù hợp
+				.Where(a => a.Id == submission.ProblemId)
 				.Select(a => a.TeacherId)
 				.FirstOrDefaultAsync();
 
@@ -60,6 +70,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 				"Submission received. Grading in progress."
 			));
 		}
+
 
 		[HttpGet("{submissionId}/result")]
 		public async Task<IActionResult> GetResult(string submissionId)
