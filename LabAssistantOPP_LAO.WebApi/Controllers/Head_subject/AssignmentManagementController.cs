@@ -45,7 +45,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 
         // ✅ Thêm đề bài
         [HttpPost("add")]
-        public async Task<IActionResult> AddAssignment([FromBody] LabAssignmentDto dto)
+        public async Task<IActionResult> AddAssignment([FromBody] CreateLabAssignmentDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ValidationErrorResponse());
@@ -60,7 +60,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 
             var assignment = new LabAssignment
             {
-                Id = dto.Id,
+                Id = newId,
                 Title = dto.Title,
                 Description = dto.Description,
                 LocTotal = dto.LocTotal ?? 0,
@@ -115,6 +115,15 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
             var assignment = await _context.LabAssignments.FindAsync(id);
             if (assignment == null)
                 return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy đề bài"));
+            // Xóa bản ghi liên quan trong Class_Has_Lab_Assignment
+            var classAssignments = _context.ClassHasLabAssignments
+                .Where(ca => ca.AssignmentId == id);
+            _context.ClassHasLabAssignments.RemoveRange(classAssignments);
+
+            // Xóa bản ghi liên quan trong Student_Lab_Assignment
+            var studentAssignments = _context.StudentLabAssignments
+                .Where(sa => sa.AssignmentId == id);
+            _context.StudentLabAssignments.RemoveRange(studentAssignments);
 
             _context.LabAssignments.Remove(assignment);
             await _context.SaveChangesAsync();
