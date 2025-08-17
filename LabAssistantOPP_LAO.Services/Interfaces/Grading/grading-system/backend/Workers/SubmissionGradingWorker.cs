@@ -61,18 +61,25 @@ namespace Business_Logic.Interfaces.Workers.Grading
 
 				var executionResult = await _dockerRunner.ExecuteAsync(tempWorkerDir, job.MainClass, inputPath, outputPath);
 
-				var expectedOutput = (await File.ReadAllTextAsync(expectedPath)).Trim();
-				var actualOutput = executionResult.Output.Trim();
+				string NormalizeNewlines(string text) =>
+				text.Replace("\r\n", "\n").Replace("\r", "\n").Trim();
+
+				var expectedOutput = NormalizeNewlines(await File.ReadAllTextAsync(expectedPath));
+				var actualOutput = NormalizeNewlines(executionResult.Output);
+
+				string Normalize(string text) =>
+				text.Replace("\r\n", "\n").Replace("\r", "\n").Trim();
 
 				resultDetails.Add(new SubmissionResultDetail
 				{
 					TestCaseId = testCase.Id,
-					Status = expectedOutput == actualOutput ? "PASS" : "FAIL",
-					ActualOutput = actualOutput,
-					ExpectedOutput = expectedOutput,
+					Status = Normalize(expectedOutput) == Normalize(actualOutput) ? "PASS" : "FAIL",
+					ActualOutput = Normalize(actualOutput),
+					ExpectedOutput = Normalize(expectedOutput),
 					DurationMs = executionResult.DurationMs,
 					ErrorLog = executionResult.Stderr
 				});
+
 
 				await _hubContext.Clients.Group($"submission_{job.SubmissionId}")
 					.SendAsync("TestCaseGraded", new
