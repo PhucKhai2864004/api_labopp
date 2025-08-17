@@ -20,8 +20,14 @@ using StackExchange.Redis;
 using Business_Logic.Interfaces.Grading.grading_system.backend.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
-
+var redisConnection = builder.Configuration.GetConnectionString("Redis");
 // Add services to the container.
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+	ConnectionMultiplexer.Connect(redisConnection)
+);
+
+
 builder.Services.AddDbContext<LabOppContext>(options =>
 	options.UseSqlServer(builder.Configuration.GetConnectionString("DB"),
 		sqlServerOptions => sqlServerOptions.EnableRetryOnFailure()));
