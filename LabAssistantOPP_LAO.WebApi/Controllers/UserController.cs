@@ -38,7 +38,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers
 			// Lấy role từ JWT
 			var role = User.FindFirst(ClaimTypes.Role)?.Value;
 
-			if (role == "Admin" || role == "Head_Subject")
+			if (role == "Admin" || role == "Head Subject")
 			{
 				return Ok(ApiResponse<object>.SuccessResponse(new
 				{
