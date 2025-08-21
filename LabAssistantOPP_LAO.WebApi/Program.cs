@@ -23,9 +23,7 @@ var builder = WebApplication.CreateBuilder(args);
 var redisConnection = builder.Configuration.GetConnectionString("Redis");
 // Add services to the container.
 
-builder.Services.AddSingleton<IConnectionMultiplexer>(
-	ConnectionMultiplexer.Connect(redisConnection)
-);
+
 
 
 builder.Services.AddDbContext<LabOopChangeV6Context>(options =>
@@ -71,8 +69,9 @@ builder.Services.AddScoped<IRedisService, RedisService>();
 
 builder.Services.AddCap(x =>
 {
-	x.UseRedis("localhost"); // hoặc cấu hình từ appsettings
-	x.UseInMemoryStorage(); // dùng bộ nhớ tạm (thay bằng EF nếu có DB)
+    x.UseRedis(builder.Configuration.GetConnectionString("Redis"));
+    // hoặc cấu hình từ appsettings
+    x.UseInMemoryStorage(); // dùng bộ nhớ tạm (thay bằng EF nếu có DB)
 	x.FailedRetryCount = 3;
 });
 
@@ -187,20 +186,15 @@ using (var scope = app.Services.CreateScope())
     try
     {
         Console.WriteLine("🔍 Checking SQL Server connection...");
-        if (db.Database.CanConnect())
-        {
-            Console.WriteLine("✅ Connected to SQL Server successfully!");
-        }
-        else
-        {
-            Console.WriteLine("❌ Cannot connect to SQL Server!");
-        }
+        db.Database.OpenConnection();
+        Console.WriteLine("✅ Connected to SQL Server successfully!");
     }
     catch (Exception ex)
     {
         Console.WriteLine("🔥 SQL Connection Error:");
-        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex.ToString());
     }
+
 }
 
 // Configure the HTTP request pipeline.
