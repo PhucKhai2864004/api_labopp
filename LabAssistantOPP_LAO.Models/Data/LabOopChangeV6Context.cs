@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using LabAssistantOPP_LAO.Models.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace LabAssistantOPP_LAO.Models.Data;
 
@@ -58,11 +59,19 @@ public partial class LabOopChangeV6Context : DbContext
 
     public virtual DbSet<VectorIndex> VectorIndices { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Server=(local);database= LabOopChange_v6;Trusted_Connection=SSPI;Encrypt=false;TrustServerCertificate=true");
+	protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+	{
+		if (!optionsBuilder.IsConfigured)
+		{
+			var config = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
+			String ConnectionStr = config.GetConnectionString("DB");
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+			optionsBuilder.UseSqlServer(ConnectionStr);
+		}
+	}
+
+
+	protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AssignmentApproval>(entity =>
         {
