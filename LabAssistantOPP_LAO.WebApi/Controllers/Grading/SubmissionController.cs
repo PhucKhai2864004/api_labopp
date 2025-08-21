@@ -36,30 +36,38 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 			if (submission == null)
 				return BadRequest(ApiResponse<object>.ErrorResponse("Invalid submission"));
 
-
-			// Nếu là Submit thì mới chấm
-			var teacherId = await _context.LabAssignments
-				.Where(a => a.Id == submission.ProblemId)
-				.Select(a => a.TeacherId)
-				.FirstOrDefaultAsync();
-
-			if (teacherId == 0)
-				return BadRequest(ApiResponse<object>.ErrorResponse("TeacherId not found"));
-
-			var job = new SubmissionJob
+			// Nếu là Draft thì mới grading
+			if (submission.Status == "Draft")
 			{
-				SubmissionId = submission.SubmissionId,
-				ProblemId = submission.ProblemId,
-				WorkDir = submission.WorkDir,
-				MainClass = submission.MainClass,
-				TeacherId = teacherId
-			};
+				var teacherId = await _context.LabAssignments
+					.Where(a => a.Id == submission.ProblemId)
+					.Select(a => a.TeacherId)
+					.FirstOrDefaultAsync();
 
-			await _capBus.PublishAsync("submission.created", job);
+				if (teacherId == 0)
+					return BadRequest(ApiResponse<object>.ErrorResponse("TeacherId not found"));
 
+				var job = new SubmissionJob
+				{
+					SubmissionId = submission.SubmissionId,
+					ProblemId = submission.ProblemId,
+					WorkDir = submission.WorkDir,
+					MainClass = submission.MainClass,
+					TeacherId = teacherId
+				};
+
+				await _capBus.PublishAsync("submission.created", job);
+
+				return Ok(ApiResponse<object>.SuccessResponse(
+					new { submissionId },
+					"Draft received. Grading in progress."
+				));
+			}
+
+			// Nếu là Submit thì không grading nữa
 			return Ok(ApiResponse<object>.SuccessResponse(
 				new { submissionId },
-				"Submission received. Grading in progress."
+				"Submission finalized. No grading executed."
 			));
 		}
 
