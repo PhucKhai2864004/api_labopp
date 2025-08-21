@@ -51,9 +51,10 @@ namespace Business_Logic.Services.Grading
 		public async Task<int> SaveSubmissionAsync(SubmitCodeDto dto)
 		{
 			// Path wwwroot/submissions
-			var wwwrootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "submissions");
-			if (!Directory.Exists(wwwrootPath))
-				Directory.CreateDirectory(wwwrootPath);
+			var relativeFolder = Path.Combine("wwwroot", "submissions", $"{dto.StudentId}_{dto.ProblemId}_{dto.SemesterId}");
+			var folder = Path.Combine(Directory.GetCurrentDirectory(), relativeFolder);
+			if (!Directory.Exists(folder))
+				Directory.CreateDirectory(folder);
 
 			// Kiểm tra xem sinh viên đã có record cho assignment này chưa
 			var existing = await _context.StudentLabAssignments
@@ -65,10 +66,6 @@ namespace Business_Logic.Services.Grading
 			// Lấy tên file gốc
 			var originalFileName = Path.GetFileName(dto.ZipFile.FileName);
 
-			// Thư mục cho submission
-			var folder = Path.Combine(wwwrootPath, $"{dto.StudentId}_{dto.ProblemId}_{dto.SemesterId}");
-			if (!Directory.Exists(folder))
-				Directory.CreateDirectory(folder);
 
 			// Path zip file sẽ lưu (tên file gốc)
 			var zipPath = Path.Combine(folder, originalFileName);
@@ -85,12 +82,16 @@ namespace Business_Logic.Services.Grading
 			// Detect main class
 			var mainClass = DetectMainClass(folder);
 
+			string submissionZipRelative = Path.GetRelativePath(
+					Directory.GetCurrentDirectory(),
+					zipPath
+				).Replace("\\", "/");
+
 			if (existing != null)
 			{
 				// Ghi đè Draft cũ
-				existing.SubmissionZip = zipPath.Replace(Directory.GetCurrentDirectory() + "\\wwwroot\\", "");
+				existing.SubmissionZip = submissionZipRelative;
 				existing.SubmittedAt = DateTime.UtcNow;
-				// Status giữ nguyên Draft
 				existing.LocResult = 0;
 				existing.ManuallyEdited = false;
 
@@ -103,7 +104,7 @@ namespace Business_Logic.Services.Grading
 					SubmissionId = existing.Id,
 					ProblemId = dto.ProblemId,
 					MainClass = mainClass,
-					WorkDir = folder
+					WorkDir = folder // container path hợp lệ
 				};
 
 				return existing.Id;
@@ -116,7 +117,7 @@ namespace Business_Logic.Services.Grading
 					AssignmentId = dto.ProblemId,
 					StudentId = dto.StudentId,
 					SemesterId = dto.SemesterId,
-					SubmissionZip = zipPath.Replace(Directory.GetCurrentDirectory() + "\\wwwroot\\", ""),
+					SubmissionZip = submissionZipRelative,
 					Status = "Draft", // mặc định
 					SubmittedAt = DateTime.UtcNow,
 					LocResult = 0,
