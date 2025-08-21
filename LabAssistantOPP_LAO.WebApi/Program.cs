@@ -18,6 +18,7 @@ using Business_Logic.Services.Grading;
 using Business_Logic.Interfaces.Workers.Docker;
 using StackExchange.Redis;
 using Business_Logic.Interfaces.Grading.grading_system.backend.Workers;
+using Business_Logic.Services.FapSync;
 
 var builder = WebApplication.CreateBuilder(args);
 var redisConnection = builder.Configuration.GetConnectionString("Redis");
@@ -123,6 +124,7 @@ builder.Services.AddScoped<ITeacherStudentService, TeacherStudentService>();
 builder.Services.AddScoped<ITeacherLocService, TeacherLocService>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<FapSyncService>();
 
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
