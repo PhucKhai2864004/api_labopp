@@ -9,7 +9,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Admin
 {
 	public class UserDto
 	{
-		public string Id { get; set; }
+		public int Id { get; set; }
 		public string FullName { get; set; }
 		public string Email { get; set; }
 		public string Phone { get; set; }
@@ -35,7 +35,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Admin
         public string Phone { get; set; }
 
         [Required(ErrorMessage = "Role ID is required")]
-        public string RoleId { get; set; }
+        public int RoleId { get; set; }
 
         [Required(ErrorMessage = "Department is required")]
         public string Department { get; set; }

@@ -12,14 +12,14 @@ namespace Business_Logic.Services.Teacher
 {
 	public class TeacherDashboardService : ITeacherDashboardService
 	{
-		private readonly LabOppContext _context;
+		private readonly LabOopChangeV6Context _context;
 
-		public TeacherDashboardService(LabOppContext context)
+		public TeacherDashboardService(LabOopChangeV6Context context)
 		{
 			_context = context;
 		}
 
-		public async Task<TeacherDashboardDto> GetDashboardAsync(string classId)
+		public async Task<TeacherDashboardDto> GetDashboardAsync(int classId)
 		{
 			var studentIds = await _context.StudentInClasses
 				.Where(s => s.ClassId == classId)
@@ -34,7 +34,7 @@ namespace Business_Logic.Services.Teacher
 			var totalAssignments = assignmentIds.Count;
 			var totalStudents = studentIds.Count;
 
-			var submissions = await _context.Submissions
+			var submissions = await _context.StudentLabAssignments
 				.Where(s => assignmentIds.Contains(s.AssignmentId))
 				.ToListAsync();
 
@@ -48,13 +48,13 @@ namespace Business_Logic.Services.Teacher
 				.Where(a => assignmentIds.Contains(a.Id))
 				.OrderByDescending(a => a.UpdatedAt)
 				.Take(5)
-				.ToListAsync(); // fetch first
+				.ToListAsync();
 
 			var recentAssignments = assignments.Select(a => new RecentAssignmentDto
 			{
 				Title = a.Title,
-				Code = a.Id,
-				TargetLOC = (int)a.LocTotal,
+				Code = a.Id, // giờ là int
+				TargetLOC = a.LocTotal ?? 0,
 				TotalSubmission = submissions.Count(s => s.AssignmentId == a.Id),
 				PassedCount = submissions.Count(s => s.AssignmentId == a.Id && s.Status == "Passed")
 			}).ToList();
@@ -62,16 +62,15 @@ namespace Business_Logic.Services.Teacher
 			var recentSubmissions = submissions
 				.OrderByDescending(s => s.SubmittedAt)
 				.Take(5)
-				.ToList() // chuyển sang in-memory
+				.ToList() // in-memory
 				.Select(s => new RecentSubmissionDto
 				{
 					StudentName = _context.Users.FirstOrDefault(u => u.Id == s.StudentId)?.Name ?? "N/A",
-					AssignmentCode = s.AssignmentId,
+					AssignmentCode = s.AssignmentId, // int
 					SubmittedAt = s.SubmittedAt ?? DateTime.MinValue,
 					Status = s.Status,
 					LOC = s.LocResult ?? 0
 				}).ToList();
-
 
 			return new TeacherDashboardDto
 			{
@@ -84,19 +83,19 @@ namespace Business_Logic.Services.Teacher
 			};
 		}
 
-		public async Task<List<ClassDto>> GetManagedClassesAsync(string teacherId)
+		public async Task<List<ClassDto>> GetManagedClassesAsync(int teacherId)
 		{
 			return await _context.Classes
 				.Where(c => c.TeacherId == teacherId)
 				.Select(c => new ClassDto
 				{
 					Id = c.Id,
-					Name = c.Name,
-					Subject = c.Subject,
-					Semester = (int)c.Semester,
+					Name = c.ClassCode,
+					Subject = c.SubjectCode,
+					Semester = c.SemesterId,
 					AcademicYear = c.AcademicYear,
-					LocToPass = (int)c.LocToPass,
-					IsActive = (bool)c.IsActive
+					LocToPass = c.LocToPass ?? 0,
+					IsActive = c.IsActive
 				})
 				.ToListAsync();
 		}

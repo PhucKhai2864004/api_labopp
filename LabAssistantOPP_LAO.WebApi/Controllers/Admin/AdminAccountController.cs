@@ -20,7 +20,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Admin
         }
 
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetUserById(string id)
+        public async Task<IActionResult> GetUserById(int id)
         {
             var data = await _service.GetUserByIdAsync(id);
             if (data == null)
@@ -30,7 +30,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Admin
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetUsers([FromQuery] string? keyword, [FromQuery] string? roleId, [FromQuery] bool? isActive)
+        public async Task<IActionResult> GetUsers([FromQuery] string? keyword, [FromQuery] int? roleId, [FromQuery] bool? isActive)
         {
             var data = await _service.GetUsersAsync(keyword, roleId, isActive);
             return Ok(ApiResponse<List<UserDto>>.SuccessResponse(data, "Success"));
@@ -44,7 +44,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Admin
 
 
             var id = await _service.CreateUserAsync(request);
-            return Ok(ApiResponse<string>.SuccessResponse(id, "User created"));
+            return Ok(ApiResponse<int>.SuccessResponse(id, "User created"));
         }
 
         [HttpPut]

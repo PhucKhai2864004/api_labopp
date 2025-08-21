@@ -13,14 +13,14 @@ namespace Business_Logic.Services.Admin
 {
 	public class UserManagementService : IUserManagementService
 	{
-		private readonly LabOppContext _context;
+		private readonly LabOopChangeV6Context _context;
 
-		public UserManagementService(LabOppContext context)
+		public UserManagementService(LabOopChangeV6Context context)
 		{
 			_context = context;
 		}
 
-		public async Task<List<UserDto>> GetUsersAsync(string? keyword, string? roleId, bool? isActive)
+		public async Task<List<UserDto>> GetUsersAsync(string? keyword, int? roleId, bool? isActive)
 		{
 			var query = _context.Users.Include(u => u.Role).AsQueryable();
 
@@ -31,14 +31,14 @@ namespace Business_Logic.Services.Admin
 					u.Email.Contains(keyword));
 			}
 
-			if (!string.IsNullOrEmpty(roleId))
+			if (roleId.HasValue)
 			{
-				query = query.Where(u => u.RoleId == roleId);
+				query = query.Where(u => u.RoleId == roleId.Value);
 			}
 
 			if (isActive.HasValue)
 			{
-				query = query.Where(u => u.IsActive == isActive);
+				query = query.Where(u => u.IsActive == isActive.Value);
 			}
 
 			return await query
@@ -48,65 +48,39 @@ namespace Business_Logic.Services.Admin
 					Id = u.Id,
 					FullName = u.Name,
 					Email = u.Email,
-					Phone = "", // Add later if schema has
+					Phone = "", // Nếu DB có thì map
 					RoleName = u.Role != null ? u.Role.Name : "",
-					Department = "", // Add if stored
-					IsActive = (bool)u.IsActive,
+					Department = "", // Nếu DB có thì map
+					IsActive = u.IsActive,
 					LastActive = u.UpdatedAt
 				}).ToListAsync();
 		}
 
-		private async Task<string> GenerateUserIdAsync(string roleName)
-		{
-			string prefix = roleName switch
-			{
-				"Student" => "HE",
-				"Teacher" => "GV",
-				"Admin" => "AD",
-				_ => "US"
-			};
-
-			var lastUser = await _context.Users
-				.Where(u => u.Id.StartsWith(prefix))
-				.OrderByDescending(u => u.Id)
-				.FirstOrDefaultAsync();
-
-			int nextNumber = 1;
-
-			if (lastUser != null && int.TryParse(lastUser.Id.Substring(prefix.Length), out int lastNumber))
-			{
-				nextNumber = lastNumber + 1;
-			}
-
-			return $"{prefix}{nextNumber.ToString("D6")}"; // HE000001, GV000123
-		}
-
-		public async Task<string> CreateUserAsync(CreateUserRequest request)
+		
+		public async Task<int> CreateUserAsync(CreateUserRequest request)
 		{
 			var role = await _context.Roles.FirstOrDefaultAsync(r => r.Id == request.RoleId);
 			if (role == null)
 				throw new Exception("Invalid role");
 
-			var newId = await GenerateUserIdAsync(role.Name);
-
 			var user = new User
 			{
-				Id = newId,
+				// Id sẽ do DB tự generate (IDENTITY)
 				Name = request.FullName,
 				Email = request.Email,
 				RoleId = request.RoleId,
 				IsActive = true,
-				UserName = request.UserName,      
-				Password = request.Password,
-				CreatedBy = "admin",
+				UserName = request.UserName,
+				Password = request.Password, // TODO: hash sau
+				CreatedBy = 1, // admin userId
 				CreatedAt = DateTime.UtcNow,
-				UpdatedBy = "admin",
+				UpdatedBy = 1,
 				UpdatedAt = DateTime.UtcNow
 			};
 
 			await _context.Users.AddAsync(user);
 			await _context.SaveChangesAsync();
-			return newId;
+			return user.Id; // trả về int id
 		}
 
 		public async Task<bool> UpdateUserAsync(UpdateUserRequest request)
@@ -118,11 +92,11 @@ namespace Business_Logic.Services.Admin
 			//user.Email = request.Email;
 			//user.RoleId = request.RoleId;
 			user.UpdatedAt = DateTime.UtcNow;
-			user.UpdatedBy = "admin";
+			user.UpdatedBy = 1; // admin
 
 			if (!string.IsNullOrWhiteSpace(request.Password))
 			{
-				user.Password = request.Password;  //Dev mode only - no hashing yet
+				user.Password = request.Password;  // TODO: hash sau
 			}
 
 			await _context.SaveChangesAsync();
@@ -136,13 +110,13 @@ namespace Business_Logic.Services.Admin
 
 			user.IsActive = request.IsActive;
 			user.UpdatedAt = DateTime.UtcNow;
-			user.UpdatedBy = "admin";
+			user.UpdatedBy = 1; // admin
 
 			await _context.SaveChangesAsync();
 			return true;
 		}
 
-		public async Task<UserDto?> GetUserByIdAsync(string id)
+		public async Task<UserDto?> GetUserByIdAsync(int id)
 		{
 			var user = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == id);
 			if (user == null) return null;
@@ -153,9 +127,9 @@ namespace Business_Logic.Services.Admin
 				FullName = user.Name,
 				Email = user.Email,
 				RoleName = user.Role?.Name ?? "",
-				Department = "", // nếu bạn lưu thêm
-				Phone = "",      // nếu có
-				IsActive = (bool)user.IsActive,
+				Department = "", // nếu DB có thì map
+				Phone = "",      // nếu DB có thì map
+				IsActive = user.IsActive,
 				LastActive = user.UpdatedAt
 			};
 		}
@@ -165,9 +139,9 @@ namespace Business_Logic.Services.Admin
 			var user = await _context.Users.FindAsync(request.UserId);
 			if (user == null) return false;
 
-			user.Password = request.NewPassword; //Plain text hiện tại
+			user.Password = request.NewPassword; // TODO: hash sau
 			user.UpdatedAt = DateTime.UtcNow;
-			user.UpdatedBy = "admin";
+			user.UpdatedBy = 1; // admin
 
 			await _context.SaveChangesAsync();
 			return true;

@@ -9,7 +9,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Teacher
 	public class LocRankingDto
 	{
 		public int Rank { get; set; }
-		public string StudentId { get; set; }
+		public int StudentId { get; set; }
 		public string FullName { get; set; }
 		public string Email { get; set; }
 		public int PassedAssignments { get; set; }

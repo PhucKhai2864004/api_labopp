@@ -8,6 +8,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs
 {
     public class StudentLabAssignmentDto
     {
-        public string AssignmentId { get; set; }
-    }
+        public int AssignmentId { get; set; }
+        public int SemesterId { get; set; }
+	}
 }

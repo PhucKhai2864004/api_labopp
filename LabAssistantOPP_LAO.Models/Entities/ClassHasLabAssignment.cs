@@ -5,13 +5,17 @@ namespace LabAssistantOPP_LAO.Models.Entities;
 
 public partial class ClassHasLabAssignment
 {
-    public string Id { get; set; } = null!;
+    public int Id { get; set; }
 
-    public string? ClassId { get; set; }
+    public int ClassId { get; set; }
 
-    public string? AssignmentId { get; set; }
+    public int AssignmentId { get; set; }
 
-    public virtual LabAssignment? Assignment { get; set; }
+    public DateTime? OpenAt { get; set; }
 
-    public virtual Class? Class { get; set; }
+    public DateTime? CloseAt { get; set; }
+
+    public virtual LabAssignment Assignment { get; set; } = null!;
+
+    public virtual Class Class { get; set; } = null!;
 }

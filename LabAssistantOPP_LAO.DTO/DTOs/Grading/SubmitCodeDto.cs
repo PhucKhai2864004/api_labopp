@@ -4,9 +4,11 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Grading
 {
 	public class SubmitCodeDto
 	{
-		public string ProblemId { get; set; } = null!; // Lab_Assignment.id
+		public int ProblemId { get; set; } // Lab_Assignment.id
 
-		public string StudentId { get; set; } = null!; // cần để lưu Submission
+		public int StudentId { get; set; } // cần để lưu Submission
+
+		public int SemesterId { get; set; } // cần để lưu Submission
 
 		public IFormFile ZipFile { get; set; } = null!;
 

@@ -5,38 +5,47 @@ namespace LabAssistantOPP_LAO.Models.Entities;
 
 public partial class LabAssignment
 {
-    public string Id { get; set; } = null!;
+    public int Id { get; set; }
 
-    public string? Title { get; set; }
+    public string Title { get; set; } = null!;
 
     public string? Description { get; set; }
 
-    public string? TeacherId { get; set; }
+    public int TeacherId { get; set; }
 
     public int? LocTotal { get; set; }
 
-    public string? Status { get; set; }
+    public string Status { get; set; } = null!;
 
-	public string? FileId { get; set; }
+    public int? CreatedBy { get; set; }
 
-	public string? CreatedBy { get; set; }
+    public int? ApprovedBy { get; set; }
 
-    public DateTime? CreatedAt { get; set; }
+    public DateTime? ApprovedAt { get; set; }
 
-    public string? UpdatedBy { get; set; }
+    public string? ReviewNote { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+
+    public int? UpdatedBy { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
 
+    public virtual User? ApprovedByNavigation { get; set; }
 
-	public virtual ICollection<ClassHasLabAssignment> ClassHasLabAssignments { get; set; } = new List<ClassHasLabAssignment>();
+    public virtual ICollection<AssignmentApproval> AssignmentApprovals { get; set; } = new List<AssignmentApproval>();
+
+    public virtual ICollection<AssignmentDocument> AssignmentDocuments { get; set; } = new List<AssignmentDocument>();
+
+    public virtual ICollection<AssignmentIngest> AssignmentIngests { get; set; } = new List<AssignmentIngest>();
+
+    public virtual ICollection<ClassHasLabAssignment> ClassHasLabAssignments { get; set; } = new List<ClassHasLabAssignment>();
+
+    public virtual User? CreatedByNavigation { get; set; }
 
     public virtual ICollection<StudentLabAssignment> StudentLabAssignments { get; set; } = new List<StudentLabAssignment>();
 
-    public virtual ICollection<Submission> Submissions { get; set; } = new List<Submission>();
-
-    public virtual User? Teacher { get; set; }
+    public virtual User Teacher { get; set; } = null!;
 
     public virtual ICollection<TestCase> TestCases { get; set; } = new List<TestCase>();
-
-	public virtual UploadFile? File { get; set; }
 }

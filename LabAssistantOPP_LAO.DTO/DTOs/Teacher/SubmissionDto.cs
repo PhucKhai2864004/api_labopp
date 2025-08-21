@@ -9,9 +9,9 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Teacher
 {
 	public class SubmissionDto
 	{
-		public string Id { get; set; }
+		public int Id { get; set; }
 		public string StudentName { get; set; }
-		public string AssignmentCode { get; set; }
+		public int AssignmentCode { get; set; }
 		public DateTime SubmittedAt { get; set; }
 		public int LOC { get; set; }
 		public string Status { get; set; }
@@ -22,7 +22,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Teacher
     public class GradeSubmissionRequest
     {
         [Required(ErrorMessage = "Submission ID is required")]
-        public string SubmissionId { get; set; }
+        public int SubmissionId { get; set; }
 
         public bool IsPass { get; set; }
     }
@@ -30,7 +30,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Teacher
     public class FeedbackRequest
     {
         [Required(ErrorMessage = "Submission ID is required")]
-        public string SubmissionId { get; set; }
+        public int SubmissionId { get; set; }
 
         [Required(ErrorMessage = "Comment is required")]
         [StringLength(1000, ErrorMessage = "Comment cannot exceed 1000 characters")]

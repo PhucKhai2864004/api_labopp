@@ -20,7 +20,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Teacher
 	public class RecentAssignmentDto
 	{
 		public string Title { get; set; }
-		public string Code { get; set; }
+		public int Code { get; set; }
 		public int TargetLOC { get; set; }
 		public int PassedCount { get; set; }
 		public int TotalSubmission { get; set; }
@@ -29,7 +29,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Teacher
 	public class RecentSubmissionDto
 	{
 		public string StudentName { get; set; }
-		public string AssignmentCode { get; set; }
+		public int AssignmentCode { get; set; }
 		public DateTime SubmittedAt { get; set; }
 		public string Status { get; set; } // Pending, Passed, Failed
 		public int LOC { get; set; }

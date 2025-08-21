@@ -8,7 +8,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Teacher
 {
 	public class ClassDto
 	{
-		public string Id { get; set; }
+		public int Id { get; set; }
 		public string Name { get; set; }
 		public string Subject { get; set; }
 		public int Semester { get; set; }

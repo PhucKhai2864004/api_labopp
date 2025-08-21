@@ -18,9 +18,9 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		private readonly ISubmissionService _submissionService;
 		//private readonly SubmissionGradingWorker _worker;
 		private readonly ICapPublisher _capBus;
-		private readonly LabOppContext _context;
+		private readonly LabOopChangeV6Context _context;
 
-		public SubmissionController(ISubmissionService submissionService, ICapPublisher capBus, LabOppContext context)
+		public SubmissionController(ISubmissionService submissionService, ICapPublisher capBus, LabOopChangeV6Context context)
 		{
 			_submissionService = submissionService;
 			_capBus = capBus;
@@ -36,14 +36,6 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 			if (submission == null)
 				return BadRequest(ApiResponse<object>.ErrorResponse("Invalid submission"));
 
-			// 🔴 Nếu là Draft thì không publish job để chấm
-			if (dto.Status == "Draft")
-			{
-				return Ok(ApiResponse<object>.SuccessResponse(
-					new { submissionId },
-					"Submission saved as Draft. It will not be graded."
-				));
-			}
 
 			// Nếu là Submit thì mới chấm
 			var teacherId = await _context.LabAssignments
@@ -51,7 +43,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 				.Select(a => a.TeacherId)
 				.FirstOrDefaultAsync();
 
-			if (string.IsNullOrEmpty(teacherId))
+			if (teacherId == 0)
 				return BadRequest(ApiResponse<object>.ErrorResponse("TeacherId not found"));
 
 			var job = new SubmissionJob
@@ -72,8 +64,8 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		}
 
 
-		[HttpGet("{submissionId}/result")]
-		public async Task<IActionResult> GetResult(string submissionId)
+		[HttpGet("{submissionId:int}/result")]
+		public async Task<IActionResult> GetResult(int submissionId)
 		{
 			var result = await _submissionService.GetResultAsync(submissionId);
 			if (result == null)

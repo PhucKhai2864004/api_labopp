@@ -18,7 +18,7 @@ namespace Business_Logic.Interfaces.Workers.Grading
 		private readonly BlockingCollection<SubmissionJob> _jobQueue = new();
 
 		// runtime-only map so we can cancel tasks; persisted state lives in Redis
-		private readonly ConcurrentDictionary<string, (WorkerTaskWrapper Worker, string TeacherId)> _namedWorkers = new();
+		private readonly ConcurrentDictionary<string, (WorkerTaskWrapper Worker, int TeacherId)> _namedWorkers = new();
 
 		private static readonly TimeSpan RedisTtl = TimeSpan.FromMinutes(5);
 		private const string KeyStatus = "grading:teacher:{0}:status";   // value: { Running: bool, ClassCode: string }
@@ -38,21 +38,21 @@ namespace Business_Logic.Interfaces.Workers.Grading
 
 		private record TeacherStatus(bool Running, string ClassCode);
 
-		public async Task<bool> IsRunningAsync(string teacherId)
+		public async Task<bool> IsRunningAsync(int teacherId)
 		{
 			var redis = GetRedis();
 			var st = await redis.GetAsync<TeacherStatus>(string.Format(KeyStatus, teacherId));
 			return st?.Running == true;
 		}
 
-		public async Task<string?> GetClassCodeAsync(string teacherId)
+		public async Task<string?> GetClassCodeAsync(int teacherId)
 		{
 			var redis = GetRedis();
 			var st = await redis.GetAsync<TeacherStatus>(string.Format(KeyStatus, teacherId));
 			return st?.ClassCode;
 		}
 
-		public async Task StartAsync(int count, string classCode, string teacherId)
+		public async Task StartAsync(int count, string classCode, int teacherId)
 		{
 			if (await IsRunningAsync(teacherId))
 			{
@@ -76,7 +76,7 @@ namespace Business_Logic.Interfaces.Workers.Grading
 			_logger.LogInformation("🔄 Started {Count} grading workers for class {ClassCode} (Teacher {TeacherId})", count, classCode, teacherId);
 		}
 
-		public async Task StopAllForTeacherAsync(string teacherId)
+		public async Task StopAllForTeacherAsync(int teacherId)
 		{
 			foreach (var kvp in _namedWorkers.Where(x => x.Value.TeacherId == teacherId).ToArray())
 			{
@@ -92,7 +92,7 @@ namespace Business_Logic.Interfaces.Workers.Grading
 				RedisTtl);
 		}
 
-		public async Task<bool> StartWorkerAsync(string name, string teacherId)
+		public async Task<bool> StartWorkerAsync(string name, int teacherId)
 		{
 			if (_namedWorkers.ContainsKey(name))
 				return false;
@@ -109,13 +109,13 @@ namespace Business_Logic.Interfaces.Workers.Grading
 			var st = await redis.GetAsync<TeacherStatus>(statusKey);
 			if (st is null || !st.Running)
 			{
-				var classCode = st?.ClassCode ?? ExtractClassCodeFromWorker(name, teacherId) ?? "";
+				var classCode = st?.ClassCode ?? ExtractClassCodeFromWorker(name) ?? "";
 				await redis.SetAsync(statusKey, new TeacherStatus(true, classCode), RedisTtl);
 			}
 			return true;
 		}
 
-		public async Task<bool> StopWorkerAsync(string name, string teacherId)
+		public async Task<bool> StopWorkerAsync(string name, int teacherId)
 		{
 			if (!_namedWorkers.TryGetValue(name, out var data))
 				return false;
@@ -135,14 +135,14 @@ namespace Business_Logic.Interfaces.Workers.Grading
 			return true;
 		}
 
-		public Task<List<string>> GetActiveWorkerNamesAsync(string teacherId)
+		public Task<List<string>> GetActiveWorkerNamesAsync(int teacherId)
 		{
 			var redis = GetRedis();
 			return redis.GetAsync<List<string>>(string.Format(KeyWorkers, teacherId))
 				.ContinueWith(t => t.Result ?? new List<string>());
 		}
 
-		private void StartWorkerInternal(string name, string teacherId)
+		private void StartWorkerInternal(string name, int teacherId)
 		{
 			var cts = new CancellationTokenSource();
 			var task = Task.Run(() => ProcessQueue(name, teacherId, cts.Token), cts.Token);
@@ -156,7 +156,7 @@ namespace Business_Logic.Interfaces.Workers.Grading
 			_logger.LogInformation("▶️ Started worker: {Name} for teacher {TeacherId}", name, teacherId);
 		}
 
-		private static string? ExtractClassCodeFromWorker(string workerName, string teacherId)
+		private static string? ExtractClassCodeFromWorker(string workerName)
 		{
 			var parts = workerName.Split('_');
 			if (parts.Length >= 4)
@@ -164,7 +164,7 @@ namespace Business_Logic.Interfaces.Workers.Grading
 			return null;
 		}
 
-		private async Task RefreshTtlAsync(string teacherId)
+		private async Task RefreshTtlAsync(int teacherId)
 		{
 			var redis = GetRedis();
 			await redis.KeyExpireAsync(string.Format(KeyStatus, teacherId), RedisTtl);
@@ -185,7 +185,7 @@ namespace Business_Logic.Interfaces.Workers.Grading
 			_jobQueue.Add(job);
 		}
 
-		private async Task ProcessQueue(string workerName, string teacherId, CancellationToken token)
+		private async Task ProcessQueue(string workerName, int teacherId, CancellationToken token)
 		{
 			while (!token.IsCancellationRequested)
 			{

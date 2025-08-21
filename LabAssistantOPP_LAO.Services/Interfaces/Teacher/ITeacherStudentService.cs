@@ -9,7 +9,7 @@ namespace Business_Logic.Interfaces.Teacher
 {
 	public interface ITeacherStudentService
 	{
-		Task<List<StudentInClassDto>> GetStudentsInClassAsync(string classId);
-		Task<StudentDetailDto> GetStudentDetailAsync(string classId, string studentId);
+		Task<List<StudentInClassDto>> GetStudentsInClassAsync(int classId);
+		Task<StudentDetailDto> GetStudentDetailAsync(int classId, int studentId);
 	}
 }

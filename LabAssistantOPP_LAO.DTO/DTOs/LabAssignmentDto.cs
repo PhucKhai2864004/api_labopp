@@ -9,7 +9,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs
 {
     public class LabAssignmentDto
     {
-        public string Id { get; set; }
+        public int Id { get; set; }
 
         [Required(ErrorMessage = "Tiêu đề không được để trống.")]
         [StringLength(200, ErrorMessage = "Tiêu đề không được vượt quá 200 ký tự.")]
@@ -22,7 +22,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs
         public int? LocTotal { get; set; }
 
         [Required(ErrorMessage = "Giáo viên tạo đề bài không được để trống.")]
-        public string TeacherId { get; set; }
+        public int TeacherId { get; set; }
 
         [Required(ErrorMessage = "Trạng thái không được để trống.")]
         public string Status { get; set; }
@@ -42,7 +42,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs
         public int? LocTotal { get; set; }
 
         [Required(ErrorMessage = "Giáo viên tạo đề bài không được để trống.")]
-        public string TeacherId { get; set; }
+        public int TeacherId { get; set; }
 
         [Required(ErrorMessage = "Trạng thái không được để trống.")]
         public string Status { get; set; }

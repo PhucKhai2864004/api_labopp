@@ -21,14 +21,14 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
         }
 
 		[HttpGet("waiting/{classId}")]
-		public async Task<IActionResult> GetWaitingReview(string classId, [FromQuery] SubmissionStatus? status)
+		public async Task<IActionResult> GetWaitingReview(int classId, [FromQuery] SubmissionStatus? status)
 		{
 			var data = await _service.GetSubmissionsWaitingReviewAsync(classId, status);
 			return Ok(ApiResponse<List<SubmissionDto>>.SuccessResponse(data, "Success"));
 		}
 
 		[HttpGet("{submissionId}")]
-        public async Task<IActionResult> GetDetail(string submissionId)
+        public async Task<IActionResult> GetDetail(int submissionId)
         {
             var data = await _service.GetSubmissionDetailAsync(submissionId);
             return Ok(ApiResponse<SubmissionDetailDto>.SuccessResponse(data, "Success"));
@@ -50,8 +50,11 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
             if (!ModelState.IsValid)
                 return BadRequest(ValidationErrorResponse());
 
-            var teacherId = User.FindFirstValue("userId");
-            var ok = await _service.SubmitFeedbackAsync(request.SubmissionId, teacherId, request.Comment);
+			if (!int.TryParse(User.FindFirst("userId")?.Value, out int teacherId))
+			{
+				return Unauthorized(ApiResponse<string>.ErrorResponse("Không xác định được giáo viên"));
+			}
+			var ok = await _service.SubmitFeedbackAsync(request.SubmissionId, teacherId, request.Comment);
             return Ok(ApiResponse<string>.SuccessResponse(ok ? "Feedback submitted" : "Submission not found"));
         }
 

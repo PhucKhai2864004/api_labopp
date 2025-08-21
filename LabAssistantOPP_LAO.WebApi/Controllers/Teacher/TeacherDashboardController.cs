@@ -15,23 +15,23 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
     public class TeacherDashboardController : ControllerBase
     {
         private readonly ITeacherDashboardService _dashboardService;
-        private readonly LabOppContext _context;
+        private readonly LabOopChangeV6Context _context;
 
-        public TeacherDashboardController(ITeacherDashboardService dashboardService, LabOppContext context)
+        public TeacherDashboardController(ITeacherDashboardService dashboardService, LabOopChangeV6Context context)
         {
             _dashboardService = dashboardService;
             _context = context;
         }
 
         [HttpGet("getDashboard/{classId}")]
-        public async Task<IActionResult> GetDashboard(string classId)
+        public async Task<IActionResult> GetDashboard(int classId)
         {
             var data = await _dashboardService.GetDashboardAsync(classId);
             return Ok(ApiResponse<TeacherDashboardDto>.SuccessResponse(data, "Success"));
         }
 
         [HttpGet("getClass/{teacherId}")]
-        public async Task<IActionResult> GetManagedClasses(string teacherId)
+        public async Task<IActionResult> GetManagedClasses(int teacherId)
         {
             var data = await _dashboardService.GetManagedClassesAsync(teacherId);
             return Ok(ApiResponse<List<ClassDto>>.SuccessResponse(data, "Success"));
@@ -40,15 +40,14 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
         [HttpGet("class-count")]
         public async Task<IActionResult> GetTeacherClassCount()
         {
-            // Lấy userId từ JWT token
-            var userId = User.FindFirst("userId")?.Value;
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized(ApiResponse<object>.ErrorResponse("Không tìm thấy userId trong token"));
-            }
+			// Lấy userId từ JWT token
+			if (!int.TryParse(User.FindFirst("userId")?.Value, out int userId))
+			{
+				return Unauthorized(ApiResponse<object>.ErrorResponse("Không tìm thấy userId hợp lệ trong token"));
+			}
 
-            // Lấy tên teacher từ bảng User
-            var teacher = await _context.Users
+			// Lấy tên teacher từ bảng User
+			var teacher = await _context.Users
                 .Where(u => u.Id == userId)
                 .Select(u => new { u.Name })
                 .FirstOrDefaultAsync();

@@ -5,7 +5,7 @@ namespace LabAssistantOPP_LAO.Models.Entities;
 
 public partial class Student
 {
-    public string Id { get; set; } = null!;
+    public int Id { get; set; }
 
     public string StudentCode { get; set; } = null!;
 
@@ -15,7 +15,7 @@ public partial class Student
 
     public string? Phone { get; set; }
 
-    public string? Gender { get; set; }
+    public bool? Gender { get; set; }
 
     public string? Address { get; set; }
 

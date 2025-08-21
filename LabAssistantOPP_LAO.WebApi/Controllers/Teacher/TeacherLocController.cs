@@ -19,7 +19,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
 		}
 
 		[HttpGet("ranking/{classId}")]
-		public async Task<IActionResult> GetLocRanking(string classId)
+		public async Task<IActionResult> GetLocRanking(int classId)
 		{
 			var data = await _service.GetLocRankingAsync(classId);
 			return Ok(ApiResponse<List<LocRankingDto>>.SuccessResponse(data, "Success"));

@@ -2,7 +2,7 @@
 {
 	public class CreateProblemDto
 	{
-		public string AssignmentId { get; set; }
+		public int AssignmentId { get; set; }
 		public string Title { get; set; }
 		public List<TestCaseDto> TestCases { get; set; }
 	}

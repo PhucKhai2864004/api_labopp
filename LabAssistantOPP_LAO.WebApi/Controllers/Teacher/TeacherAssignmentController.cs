@@ -19,11 +19,11 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
     {
         private readonly ITeacherAssignmentService _service;
         private readonly IWebHostEnvironment _environment;
-        private readonly LabOppContext _context;
+        private readonly LabOopChangeV6Context _context;
         public TeacherAssignmentController(
     ITeacherAssignmentService service,
     IWebHostEnvironment environment,
-    LabOppContext context)
+    LabOopChangeV6Context context)
         {
             _service = service;
             _environment = environment;
@@ -31,28 +31,31 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
         }
 
         [HttpGet("{classId}")]
-        public async Task<IActionResult> GetAssignments(string classId)
+        public async Task<IActionResult> GetAssignments(int classId)
         {
             var data = await _service.GetAssignmentsByClassAsync(classId);
             return Ok(ApiResponse<List<AssignmentDto>>.SuccessResponse(data, "Success"));
         }
 
         [HttpGet("detail/{assignmentId}")]
-        public async Task<IActionResult> GetAssignment(string assignmentId)
+        public async Task<IActionResult> GetAssignment(int assignmentId)
         {
             var data = await _service.GetAssignmentDetailAsync(assignmentId);
             return Ok(ApiResponse<AssignmentDto>.SuccessResponse(data, "Success"));
         }
 
         [HttpPost("{classId}")]
-        public async Task<IActionResult> CreateAssignment(string classId, [FromBody] CreateAssignmentRequest request)
+        public async Task<IActionResult> CreateAssignment(int classId, [FromBody] CreateAssignmentRequest request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ValidationErrorResponse());
 
-            var teacherId = User.FindFirstValue("userId");
-            var newId = await _service.CreateAssignmentAsync(classId, teacherId, request);
-            return Ok(ApiResponse<string>.SuccessResponse(newId, "Created"));
+			if (!int.TryParse(User.FindFirstValue("userId"), out int teacherId))
+				return Unauthorized(ApiResponse<string>.ErrorResponse("Không xác định được giáo viên"));
+
+			var newId = await _service.CreateAssignmentAsync(classId, teacherId, request);
+
+			return Ok(ApiResponse<int>.SuccessResponse(newId, "Created"));
         }
 
         [HttpPut]

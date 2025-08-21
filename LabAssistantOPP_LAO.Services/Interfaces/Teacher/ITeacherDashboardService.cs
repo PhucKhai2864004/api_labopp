@@ -9,7 +9,7 @@ namespace Business_Logic.Interfaces.Teacher
 {
 	public interface ITeacherDashboardService
 	{
-		Task<TeacherDashboardDto> GetDashboardAsync(string classId);
-		Task<List<ClassDto>> GetManagedClassesAsync(string teacherId);
+		Task<TeacherDashboardDto> GetDashboardAsync(int classId);
+		Task<List<ClassDto>> GetManagedClassesAsync(int teacherId);
 	}
 }

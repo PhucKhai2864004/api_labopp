@@ -12,14 +12,14 @@ namespace Business_Logic.Services.Teacher
 {
 	public class TeacherLocService : ITeacherLocService
 	{
-		private readonly LabOppContext _context;
+		private readonly LabOopChangeV6Context _context;
 
-		public TeacherLocService(LabOppContext context)
+		public TeacherLocService(LabOopChangeV6Context context)
 		{
 			_context = context;
 		}
 
-		public async Task<List<LocRankingDto>> GetLocRankingAsync(string classId)
+		public async Task<List<LocRankingDto>> GetLocRankingAsync(int classId)
 		{
 			var studentIds = await _context.StudentInClasses
 				.Where(x => x.ClassId == classId)
@@ -31,8 +31,10 @@ namespace Business_Logic.Services.Teacher
 				.Select(x => x.AssignmentId)
 				.ToListAsync();
 
-			var submissions = await _context.Submissions
-				.Where(s => studentIds.Contains(s.StudentId) && assignmentIds.Contains(s.AssignmentId) && s.Status == "Passed")
+			var submissions = await _context.StudentLabAssignments
+				.Where(s => studentIds.Contains(s.StudentId)
+						 && assignmentIds.Contains(s.AssignmentId)
+						 && s.Status == "Passed")
 				.ToListAsync();
 
 			var users = await _context.Users
@@ -45,14 +47,17 @@ namespace Business_Logic.Services.Teacher
 				FullName = u.Name,
 				Email = u.Email,
 				PassedAssignments = submissions.Count(s => s.StudentId == u.Id),
-				TotalLOC = submissions.Where(s => s.StudentId == u.Id).Sum(s => s.LocResult ?? 0)
+				TotalLOC = submissions
+							.Where(s => s.StudentId == u.Id)
+							.Sum(s => s.LocResult ?? 0)
 			})
 			.OrderByDescending(r => r.TotalLOC)
 			.Select((r, index) =>
 			{
 				r.Rank = index + 1;
 				return r;
-			}).ToList();
+			})
+			.ToList();
 
 			return rankings;
 		}

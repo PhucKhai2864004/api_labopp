@@ -17,10 +17,12 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 			_workerPool = workerPool;
 		}
 
-		private string GetTeacherId()
+		private int GetTeacherId()
 		{
-			return User.FindFirst("userId")?.Value
-				?? throw new UnauthorizedAccessException("Teacher ID not found in token");
+			var claim = User.FindFirst("userId")?.Value;
+			if (string.IsNullOrEmpty(claim) || !int.TryParse(claim, out var teacherId))
+				throw new UnauthorizedAccessException("Teacher ID not found or invalid in token");
+			return teacherId;
 		}
 
 		[HttpPost("start-workers")]
@@ -30,7 +32,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 				return BadRequest(ApiResponse<string>.ErrorResponse("ClassCode is required."));
 
 			var teacherId = GetTeacherId();
-			int defaultCount = 5; // mặc định 5 worker
+			const int defaultCount = 5; // mặc định 5 worker
 			await _workerPool.StartAsync(defaultCount, classCode, teacherId);
 
 			return Ok(ApiResponse<string>.SuccessResponse(
@@ -44,6 +46,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		{
 			var teacherId = GetTeacherId();
 			await _workerPool.StopAllForTeacherAsync(teacherId);
+
 			return Ok(ApiResponse<string>.SuccessResponse(
 				null,
 				"All your workers stopped."
@@ -54,10 +57,13 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		public async Task<IActionResult> Status()
 		{
 			var teacherId = GetTeacherId();
+			var running = await _workerPool.IsRunningAsync(teacherId);
+			var classCode = await _workerPool.GetClassCodeAsync(teacherId);
+
 			return Ok(ApiResponse<object>.SuccessResponse(new
 			{
-				running = await _workerPool.IsRunningAsync(teacherId),
-				classCode = await _workerPool.GetClassCodeAsync(teacherId)
+				running,
+				classCode
 			}));
 		}
 
@@ -67,6 +73,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 			var teacherId = GetTeacherId();
 			if (await _workerPool.StartWorkerAsync(name, teacherId))
 				return Ok(ApiResponse<string>.SuccessResponse(null, $"Worker {name} started."));
+
 			return BadRequest(ApiResponse<string>.ErrorResponse($"Worker {name} already running."));
 		}
 
@@ -78,6 +85,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 			{
 				if (await _workerPool.StopWorkerAsync(name, teacherId))
 					return Ok(ApiResponse<string>.SuccessResponse(null, $"Worker {name} stopped."));
+
 				return NotFound(ApiResponse<string>.ErrorResponse($"Worker {name} not found."));
 			}
 			catch (UnauthorizedAccessException)
@@ -90,11 +98,15 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		public async Task<IActionResult> GetWorkers()
 		{
 			var teacherId = GetTeacherId();
+			var running = await _workerPool.IsRunningAsync(teacherId);
+			var classCode = await _workerPool.GetClassCodeAsync(teacherId);
+			var activeWorkers = await _workerPool.GetActiveWorkerNamesAsync(teacherId);
+
 			return Ok(ApiResponse<object>.SuccessResponse(new
 			{
-				running = await _workerPool.IsRunningAsync(teacherId),
-				classCode = await _workerPool.GetClassCodeAsync(teacherId),
-				activeWorkers = await _workerPool.GetActiveWorkerNamesAsync(teacherId)
+				running,
+				classCode,
+				activeWorkers
 			}));
 		}
 

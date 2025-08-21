@@ -14,8 +14,8 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
     [Route("api/head_subject/dashboard")]
     public class HeadSubjectDashboardController : ControllerBase
     {
-        private readonly LabOppContext _context;
-        public HeadSubjectDashboardController(LabOppContext context)
+        private readonly LabOopChangeV6Context _context;
+        public HeadSubjectDashboardController(LabOopChangeV6Context context)
         {
             _context = context;
         }

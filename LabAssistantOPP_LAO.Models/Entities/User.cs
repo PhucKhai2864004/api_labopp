@@ -5,37 +5,43 @@ namespace LabAssistantOPP_LAO.Models.Entities;
 
 public partial class User
 {
-    public string Id { get; set; } = null!;
+    public int Id { get; set; }
 
-    public string? Name { get; set; }
+    public string Name { get; set; } = null!;
 
-    public string? Email { get; set; }
+    public string Email { get; set; } = null!;
 
     public string? UserName { get; set; }
 
     public string? Password { get; set; }
 
-    public string? RoleId { get; set; }
+    public int RoleId { get; set; }
 
-    public bool? IsActive { get; set; }
+    public bool IsActive { get; set; }
 
-    public string? CreatedBy { get; set; }
+    public int? CreatedBy { get; set; }
 
-    public DateTime? CreatedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
 
-    public string? UpdatedBy { get; set; }
+    public int? UpdatedBy { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
 
+    public virtual ICollection<AssignmentApproval> AssignmentApprovals { get; set; } = new List<AssignmentApproval>();
+
+    public virtual ICollection<AssignmentDocument> AssignmentDocuments { get; set; } = new List<AssignmentDocument>();
+
+    public virtual ICollection<ClassSlotLog> ClassSlotLogs { get; set; } = new List<ClassSlotLog>();
+
     public virtual ICollection<Class> Classes { get; set; } = new List<Class>();
 
-    public virtual ICollection<Feedback> Feedbacks { get; set; } = new List<Feedback>();
+    public virtual ICollection<LabAssignment> LabAssignmentApprovedByNavigations { get; set; } = new List<LabAssignment>();
 
-    public virtual ICollection<UploadFile> Files { get; set; } = new List<UploadFile>();
+    public virtual ICollection<LabAssignment> LabAssignmentCreatedByNavigations { get; set; } = new List<LabAssignment>();
 
-    public virtual ICollection<LabAssignment> LabAssignments { get; set; } = new List<LabAssignment>();
+    public virtual ICollection<LabAssignment> LabAssignmentTeachers { get; set; } = new List<LabAssignment>();
 
-    public virtual Role? Role { get; set; }
+    public virtual Role Role { get; set; } = null!;
 
     public virtual Student? Student { get; set; }
 
@@ -43,7 +49,7 @@ public partial class User
 
     public virtual ICollection<StudentLabAssignment> StudentLabAssignments { get; set; } = new List<StudentLabAssignment>();
 
-    public virtual ICollection<Submission> Submissions { get; set; } = new List<Submission>();
-
     public virtual Teacher? Teacher { get; set; }
+
+    public virtual ICollection<TestCase> TestCases { get; set; } = new List<TestCase>();
 }

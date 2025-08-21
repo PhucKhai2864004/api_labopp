@@ -8,7 +8,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Teacher
 {
 	public class StudentInClassDto
 	{
-		public string StudentId { get; set; }
+		public int StudentId { get; set; }
 		public string FullName { get; set; }
 		public string Email { get; set; }
 		public int TotalAssignments { get; set; }
@@ -18,7 +18,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Teacher
 
 	public class StudentDetailDto
 	{
-		public string StudentId { get; set; }
+		public int StudentId { get; set; }
 		public string FullName { get; set; }
 		public string Email { get; set; }
 		public List<StudentAssignmentProgress> Progress { get; set; }
@@ -26,7 +26,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Teacher
 
 	public class StudentAssignmentProgress
 	{
-		public string AssignmentId { get; set; }
+		public int AssignmentId { get; set; }
 		public string Title { get; set; }
 		public string Status { get; set; } // Passed / Reject / Draft
 		public int LOC { get; set; }

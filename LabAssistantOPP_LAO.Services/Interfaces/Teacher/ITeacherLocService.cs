@@ -9,6 +9,6 @@ namespace Business_Logic.Interfaces.Teacher
 {
 	public interface ITeacherLocService
 	{
-		Task<List<LocRankingDto>> GetLocRankingAsync(string classId);
+		Task<List<LocRankingDto>> GetLocRankingAsync(int classId);
 	}
 }

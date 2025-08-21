@@ -15,9 +15,9 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 	[Authorize(Roles = "Head Subject,Teacher")]
 	public class ProblemController : ControllerBase
 	{
-		private readonly LabOppContext _context;
+		private readonly LabOopChangeV6Context _context;
 
-		public ProblemController(LabOppContext context)
+		public ProblemController(LabOopChangeV6Context context)
 		{
 			_context = context;
 		}
@@ -34,28 +34,28 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 				return NotFound(ApiResponse<object>.ErrorResponse("Assignment not found."));
 			}
 
-			var currentUser = User.Identity?.Name ?? "system";
+			var currentUserIdClaim = User.FindFirst("userId")?.Value;
+			int? currentUserId = int.TryParse(currentUserIdClaim, out var uid) ? uid : null;
+
 			var now = DateTime.UtcNow;
 
 			if (!string.IsNullOrWhiteSpace(dto.Title))
 			{
 				assignment.Title = dto.Title;
 				assignment.UpdatedAt = now;
-				assignment.UpdatedBy = currentUser;
+				assignment.UpdatedBy = currentUserId;
 			}
 
-			var startingIndex = assignment.TestCases.Count + 1;
-			var newTestCases = dto.TestCases.Select((t, index) => new TestCase
+			var newTestCases = dto.TestCases.Select(t => new TestCase
 			{
-				Id = $"{assignment.Id}_tc{startingIndex + index}",
+				AssignmentId = assignment.Id,
 				Input = t.Input,
 				ExpectedOutput = t.ExpectedOutput,
 				Loc = t.Loc,
-				AssignmentId = assignment.Id,
 				CreatedAt = now,
-				CreatedBy = currentUser,
+				CreatedBy = null,  // có thể parse userId từ token nếu cần
 				UpdatedAt = now,
-				UpdatedBy = currentUser
+				UpdatedBy = null
 			}).ToList();
 
 			foreach (var tc in newTestCases)
@@ -76,40 +76,24 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		/// </summary>
 		[HttpPost("load-from-files")]
 		public async Task<IActionResult> LoadFromFiles(
-	[FromForm] string problemId,
-	[FromForm] List<IFormFile> files)
+			[FromForm] int assignmentId,
+			[FromForm] List<IFormFile> files)
 		{
 			if (files == null || files.Count == 0)
 				return BadRequest(ApiResponse<object>.ErrorResponse("No files uploaded."));
 
-			var currentUser = User.Identity?.Name ?? "system";
+			var currentUserId = User.FindFirst("userId")?.Value;
+			int? createdBy = int.TryParse(currentUserId, out var uid) ? uid : null;
 			var now = DateTime.UtcNow;
 
 			// Tìm assignment
 			var assignment = await _context.LabAssignments
 				.Include(a => a.TestCases)
-				.FirstOrDefaultAsync(a => a.Id == problemId);
+				.FirstOrDefaultAsync(a => a.Id == assignmentId);
 
 			if (assignment == null)
 			{
-				// Nếu không có thì tạo mới
-				assignment = new LabAssignment
-				{
-					Id = problemId,
-					Title = $"Problem {problemId} (uploaded)",
-					CreatedAt = now,
-					CreatedBy = currentUser,
-					UpdatedAt = now,
-					UpdatedBy = currentUser,
-					TestCases = new List<TestCase>()
-				};
-				_context.LabAssignments.Add(assignment);
-			}
-			else
-			{
-				// Nếu có thì cập nhật
-				assignment.UpdatedAt = now;
-				assignment.UpdatedBy = currentUser;
+				return NotFound(ApiResponse<object>.ErrorResponse("Assignment not found."));
 			}
 
 			// Lưu file tạm
@@ -126,19 +110,10 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 			}
 
 			// Load test case
-			var testCases = TestCaseFileLoader.LoadTestCasesFromFolder(tempFolder, problemId);
+			var testCases = TestCaseFileLoader.LoadTestCasesFromFolder(tempFolder, assignmentId, createdBy);
 
-			// Xác định index bắt đầu
-			var startingIndex = assignment.TestCases.Count + 1;
-
-			foreach (var (tc, index) in testCases.Select((tc, i) => (tc, i)))
+			foreach (var tc in testCases)
 			{
-				tc.Id = $"{problemId}_tc{startingIndex + index}";
-				tc.AssignmentId = problemId;
-				tc.CreatedAt = now;
-				tc.CreatedBy = currentUser;
-				tc.UpdatedAt = now;
-				tc.UpdatedBy = currentUser;
 				assignment.TestCases.Add(tc);
 			}
 
@@ -151,8 +126,8 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		/// <summary>
 		/// Lấy thông tin 1 test case theo Id
 		/// </summary>
-		[HttpGet("testcase/{id}")]
-		public async Task<IActionResult> GetTestCase(string id)
+		[HttpGet("testcase/{id:int}")]
+		public async Task<IActionResult> GetTestCase(int id)
 		{
 			var testCase = await _context.TestCases.FirstOrDefaultAsync(tc => tc.Id == id);
 
@@ -165,15 +140,15 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		/// <summary>
 		/// Lấy toàn bộ test case của một problem
 		/// </summary>
-		[HttpGet("{id}/testcases")]
-		public async Task<IActionResult> GetTestCases(string id)
+		[HttpGet("{assignmentId:int}/testcases")]
+		public async Task<IActionResult> GetTestCases(int assignmentId)
 		{
 			var testCases = await _context.TestCases
-				.Where(tc => tc.AssignmentId == id)
+				.Where(tc => tc.AssignmentId == assignmentId)
 				.ToListAsync();
 
 			if (!testCases.Any())
-				return NotFound(ApiResponse<object>.ErrorResponse("No test cases found for this problem."));
+				return NotFound(ApiResponse<object>.ErrorResponse("No test cases found for this assignment."));
 
 			return Ok(ApiResponse<List<TestCase>>.SuccessResponse(testCases));
 		}

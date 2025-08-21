@@ -9,8 +9,8 @@ namespace LabAssistantOPP_LAO.DTO.DTOs
 {
     public class ViewMySubmissionDto
     {
-        public string SubmissionId { get; set; }
-        public string AssignmentId { get; set; }
+        public int SubmissionId { get; set; }
+        public int AssignmentId { get; set; }
         public string FileName { get; set; }
         public string FileUrl { get; set; }
         public string Status { get; set; }

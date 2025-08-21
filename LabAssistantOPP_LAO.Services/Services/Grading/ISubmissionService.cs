@@ -5,10 +5,10 @@ namespace Business_Logic.Services.Grading
 {
 	public interface ISubmissionService
 	{
-		Task<string> SaveSubmissionAsync(SubmitCodeDto dto);
-		Task<List<TestCase>> GetTestCases(string assignmentId);
-		Task SaveResultAsync(string submissionId, List<SubmissionResultDetail> resultDetails);
-		Task<List<SubmissionResultDetail>?> GetResultAsync(string submissionId);
-		Task<SubmissionInfo?> GetSubmissionAsync(string submissionId);
+		Task<int> SaveSubmissionAsync(SubmitCodeDto dto);
+		Task<List<TestCase>> GetTestCases(int assignmentId);
+		Task SaveResultAsync(int studentLabAssignmentId, List<SubmissionResultDetail> resultDetails);
+		Task<List<SubmissionResultDetail>?> GetResultAsync(int studentLabAssignmentId);
+		Task<SubmissionInfo?> GetSubmissionAsync(int submissionId);
 	}
 }

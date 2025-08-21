@@ -10,9 +10,9 @@ namespace Business_Logic.Interfaces.Teacher
 {
 	public interface ITeacherSubmissionService
 	{
-		Task<List<SubmissionDto>> GetSubmissionsWaitingReviewAsync(string classId, SubmissionStatus? status = null);
-		Task<SubmissionDetailDto> GetSubmissionDetailAsync(string submissionId);
-		Task<bool> GradeSubmissionAsync(string submissionId, bool isPass);
-		Task<bool> SubmitFeedbackAsync(string submissionId, string teacherId, string comment);
+		Task<List<SubmissionDto>> GetSubmissionsWaitingReviewAsync(int classId, SubmissionStatus? status = null);
+		Task<SubmissionDetailDto> GetSubmissionDetailAsync(int submissionId);
+		Task<bool> GradeSubmissionAsync(int submissionId, bool isPass);
+		Task<bool> SubmitFeedbackAsync(int submissionId, int teacherId, string comment);
 	}
 }

@@ -28,7 +28,7 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(
 );
 
 
-builder.Services.AddDbContext<LabOppContext>(options =>
+builder.Services.AddDbContext<LabOopChangeV6Context>(options =>
 	options.UseSqlServer(builder.Configuration.GetConnectionString("DB"),
 		sqlServerOptions => sqlServerOptions.EnableRetryOnFailure()));
 builder.Services.AddControllers()
@@ -183,7 +183,7 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<LabOppContext>();
+    var db = scope.ServiceProvider.GetRequiredService<LabOopChangeV6Context>();
     try
     {
         Console.WriteLine("🔍 Checking SQL Server connection...");

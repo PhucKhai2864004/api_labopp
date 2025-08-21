@@ -12,8 +12,8 @@ namespace Business_Logic.Services.Admin
 {
 	public class RoleService : IRoleService
 	{
-		private readonly LabOppContext _context;
-		public RoleService(LabOppContext context)
+		private readonly LabOopChangeV6Context _context;
+		public RoleService(LabOopChangeV6Context context)
 		{
 			_context = context;
 		}

@@ -14,22 +14,22 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
 	public class TeacherStudentController : ControllerBase
 	{
 		private readonly ITeacherStudentService _service;
-        private readonly LabOppContext _context;
-        public TeacherStudentController(ITeacherStudentService service, LabOppContext context)
+        private readonly LabOopChangeV6Context _context;
+        public TeacherStudentController(ITeacherStudentService service, LabOopChangeV6Context context)
 		{
 			_service = service;
             _context = context;
         }
 
 		[HttpGet("in-class/{classId}")]
-		public async Task<IActionResult> GetStudents(string classId)
+		public async Task<IActionResult> GetStudents(int classId)
 		{
 			var data = await _service.GetStudentsInClassAsync(classId);
 			return Ok(ApiResponse<List<StudentInClassDto>>.SuccessResponse(data, "Success"));
 		}
 
 		[HttpGet("{classId}/{studentId}")]
-		public async Task<IActionResult> GetStudentDetail(string classId, string studentId)
+		public async Task<IActionResult> GetStudentDetail(int classId, int studentId)
 		{
 			var data = await _service.GetStudentDetailAsync(classId, studentId);
 			return Ok(ApiResponse<StudentDetailDto>.SuccessResponse(data, "Success"));
@@ -37,16 +37,15 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
 
         [HttpGet("class/{classId}/students-progress")]
         [Authorize]
-        public async Task<IActionResult> GetStudentsProgressByClass(string classId)
+        public async Task<IActionResult> GetStudentsProgressByClass(int classId)
         {
-            var teacherId = User.FindFirst("userId")?.Value;
-            if (string.IsNullOrEmpty(teacherId))
-            {
-                return Unauthorized(ApiResponse<string>.ErrorResponse("Không xác định được giáo viên"));
-            }
+			if (!int.TryParse(User.FindFirst("userId")?.Value, out int teacherId))
+			{
+				return Unauthorized(ApiResponse<string>.ErrorResponse("Không xác định được giáo viên"));
+			}
 
-            // Kiểm tra lớp có thuộc giáo viên này không
-            var classInfo = await _context.Classes
+			// Kiểm tra lớp có thuộc giáo viên này không
+			var classInfo = await _context.Classes
                 .FirstOrDefaultAsync(c => c.Id == classId && c.TeacherId == teacherId);
             if (classInfo == null)
             {
@@ -72,11 +71,11 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
                 {
                     StudentId = u.Id,
                     StudentName = u.Name,
-                    TotalLoc = _context.Submissions
-                        .Where(s => s.StudentId == u.Id && s.LocResult != null)
+                    TotalLoc = _context.StudentLabAssignments
+						.Where(s => s.StudentId == u.Id && s.LocResult != null)
                         .Sum(s => (int?)s.LocResult) ?? 0,
-                    CompletedAssignments = _context.Submissions
-                        .Where(s => s.StudentId == u.Id
+                    CompletedAssignments = _context.StudentLabAssignments
+						.Where(s => s.StudentId == u.Id
                                  && s.Status == "Passed"
                                  && assignmentsInClass.Contains(s.AssignmentId))
                         .Select(s => s.AssignmentId)

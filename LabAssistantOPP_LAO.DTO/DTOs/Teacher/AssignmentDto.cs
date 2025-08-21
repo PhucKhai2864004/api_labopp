@@ -9,7 +9,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Teacher
 {
 	public class AssignmentDto
 	{
-		public string Id { get; set; }
+		public int Id { get; set; }
 		public string Title { get; set; }
 		public string Description { get; set; }
 		public int LocTarget { get; set; }
@@ -41,6 +41,6 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Teacher
 	public class UpdateAssignmentRequest : CreateAssignmentRequest
 	{
         [Required(ErrorMessage = "Assignment ID is required")]
-        public string AssignmentId { get; set; }
+        public int AssignmentId { get; set; }
 	}
 }

@@ -14,94 +14,122 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
     [Route("api/head_subject/semester")]
     public class SemesterController : ControllerBase
     {
-        private readonly LabOppContext _context;
+        private readonly LabOopChangeV6Context _context;
         private static (int Semester, string AcademicYear)? _currentSemester = null;
 
-        public SemesterController(LabOppContext context)
+        public SemesterController(LabOopChangeV6Context context)
         {
             _context = context;
         }
 
         // ✅ 1. Xem danh sách học kỳ
-        [HttpGet("semester")]
+        [HttpGet("list")]
         public async Task<IActionResult> GetSemesters()
         {
-            var semesters = await _context.Classes
-                .OrderByDescending(c => c.AcademicYear)
-                .ThenByDescending(c => c.Semester)
-                .Select(c => new
+            var semesters = await _context.Semesters
+                .OrderByDescending(s => s.StartDate)
+                .Select(s => new
                 {
-                    c.Id,
-                    Name = c.Name,
-                    Semester = c.Semester,
-                    AcademicYear = c.AcademicYear,
-                    IsActive = c.IsActive,
-                    CreatedAt = c.CreatedAt
+                    s.Id,
+                    s.Name,
+                    s.StartDate,
+                    s.EndDate
                 })
                 .ToListAsync();
 
-            return Ok(ApiResponse<object>.SuccessResponse(semesters));
+            return Ok(ApiResponse<object>.SuccessResponse(semesters, "Lấy danh sách học kỳ thành công"));
         }
 
+		[HttpPost("add")]
+		public async Task<IActionResult> AddSemester([FromBody] Semester request)
+		{
+			try
+			{
+				var newSemester = new Semester
+				{
+					Name = request.Name,
+					StartDate = request.StartDate,
+					EndDate = request.EndDate
+				};
 
-        [HttpPost("class")]
-        public async Task<IActionResult> AddClass([FromBody] AddClassRequestDto request)
-        {
-            try
-            {
-                var newClass = new Class
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Name = request.Name,
-                    Subject = request.Subject,
-                    Semester = request.Semester,
-                    AcademicYear = request.AcademicYear,
-                    LocToPass = request.LocToPass,
-                    TeacherId = request.TeacherId,
-                    IsActive = request.IsActive,
-                    CreatedBy = User.Identity?.Name ?? "system",
-                    CreatedAt = DateTime.UtcNow
-                };
+				_context.Semesters.Add(newSemester);
+				await _context.SaveChangesAsync();
 
-                _context.Classes.Add(newClass);
-                await _context.SaveChangesAsync();
+				return Ok(ApiResponse<int>.SuccessResponse(newSemester.Id, "Thêm học kỳ thành công"));
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(ApiResponse<string>.ErrorResponse("Thêm học kỳ thất bại", new List<string> { ex.Message }));
+			}
+		}
 
-                return Ok(ApiResponse<string>.SuccessResponse(newClass.Id, "Thêm lớp học thành công"));
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ApiResponse<string>.ErrorResponse("Thêm lớp học thất bại", new List<string> { ex.Message }));
-            }
-        }
 
-        [HttpGet("classes")]
-        public async Task<IActionResult> GetClassesBySemesterAndYear([FromQuery] int semester, [FromQuery] string academicYear)
-        {
-            try
-            {
-                var classes = await _context.Classes
-                    .Where(c => c.Semester == semester && c.AcademicYear == academicYear)
-                    .Select(c => new
-                    {
-                        c.Id,
-                        c.Name,
-                        c.Subject,
-                        c.Semester,
-                        c.AcademicYear
-                    })
-                    .ToListAsync();
-                if (classes == null || classes.Count == 0)
-                {
-                    return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy lớp học nào với học kỳ và năm học đã chọn."));
-                }
-                return Ok(ApiResponse<object>.SuccessResponse(classes, "Lấy danh sách lớp thành công"));
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ApiResponse<string>.ErrorResponse("Không thể lấy danh sách lớp", new List<string> { ex.Message }));
-            }
-        }
+		[HttpGet("{semesterId}/classes")]
+		public async Task<IActionResult> GetClassesBySemester(int semesterId)
+		{
+			try
+			{
+				var semester = await _context.Semesters.FindAsync(semesterId);
+				if (semester == null)
+				{
+					return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy học kỳ"));
+				}
 
-    }
+				var classes = await _context.Classes
+					.Where(c => c.SemesterId == semesterId)
+					.Select(c => new
+					{
+						c.Id,
+						c.ClassCode,
+						c.SubjectCode,
+						c.AcademicYear,
+						c.IsActive,
+						c.LocToPass,
+						c.TeacherId
+					})
+					.ToListAsync();
+
+				return Ok(ApiResponse<object>.SuccessResponse(classes, "Lấy danh sách lớp theo học kỳ thành công"));
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(ApiResponse<string>.ErrorResponse("Không thể lấy danh sách lớp", new List<string> { ex.Message }));
+			}
+		}
+
+		[HttpPost("{semesterId}/add-class")]
+		public async Task<IActionResult> AddClass(int semesterId, [FromBody] AddClassRequestDto request)
+		{
+			try
+			{
+				var semester = await _context.Semesters.FindAsync(semesterId);
+				if (semester == null)
+				{
+					return NotFound(ApiResponse<string>.ErrorResponse("Học kỳ không tồn tại"));
+				}
+
+				var newClass = new Class
+				{
+					ClassCode = request.ClassCode,
+					SubjectCode = request.Subject,
+					SemesterId = semesterId,
+					AcademicYear = request.AcademicYear,
+					IsActive = request.IsActive,
+					LocToPass = request.LocToPass,
+					TeacherId = request.TeacherId
+				};
+
+				_context.Classes.Add(newClass);
+				await _context.SaveChangesAsync();
+
+				return Ok(ApiResponse<int>.SuccessResponse(newClass.Id, "Thêm lớp học thành công"));
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(ApiResponse<string>.ErrorResponse("Thêm lớp học thất bại", new List<string> { ex.Message }));
+			}
+		}
+
+	}
 
 }

@@ -8,11 +8,11 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Teacher
 {
 	public class SubmissionDetailDto
 	{
-		public string Id { get; set; }
-		public string StudentId { get; set; }
+		public int Id { get; set; }
+		public int StudentId { get; set; }
 		public string StudentName { get; set; }
 
-		public string AssignmentId { get; set; }
+		public int AssignmentId { get; set; }
 		public string AssignmentTitle { get; set; }
 		public int LocTarget { get; set; }
 
@@ -30,9 +30,9 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Teacher
 
 	public class TestCaseResultDto
 	{
-		public string Id { get; set; } = null!;
+		public int Id { get; set; }
 
-		public string? TestCaseId { get; set; }
+		public int? TestCaseId { get; set; }
 
 		public string? ActualOutput { get; set; }
 

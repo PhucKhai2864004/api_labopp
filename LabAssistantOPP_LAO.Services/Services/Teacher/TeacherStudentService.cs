@@ -12,14 +12,14 @@ namespace Business_Logic.Services.Teacher
 {
 	public class TeacherStudentService : ITeacherStudentService
 	{
-		private readonly LabOppContext _context;
+		private readonly LabOopChangeV6Context _context;
 
-		public TeacherStudentService(LabOppContext context)
+		public TeacherStudentService(LabOopChangeV6Context context)
 		{
 			_context = context;
 		}
 
-		public async Task<List<StudentInClassDto>> GetStudentsInClassAsync(string classId)
+		public async Task<List<StudentInClassDto>> GetStudentsInClassAsync(int classId)
 		{
 			var studentIds = await _context.StudentInClasses
 				.Where(x => x.ClassId == classId)
@@ -31,13 +31,13 @@ namespace Business_Logic.Services.Teacher
 				.Select(x => x.AssignmentId)
 				.ToListAsync();
 
-			var submissions = await _context.Submissions
+			var submissions = await _context.StudentLabAssignments
 				.Where(s => studentIds.Contains(s.StudentId) && assignments.Contains(s.AssignmentId))
-				.ToListAsync(); 
+				.ToListAsync();
 
 			var users = await _context.Users
 				.Where(u => studentIds.Contains(u.Id))
-				.ToListAsync(); 
+				.ToListAsync();
 
 			var result = users.Select(u => new StudentInClassDto
 			{
@@ -54,7 +54,7 @@ namespace Business_Logic.Services.Teacher
 			return result;
 		}
 
-		public async Task<StudentDetailDto> GetStudentDetailAsync(string classId, string studentId)
+		public async Task<StudentDetailDto> GetStudentDetailAsync(int classId, int studentId)
 		{
 			var user = await _context.Users.FindAsync(studentId);
 			if (user == null) return null;
@@ -68,7 +68,7 @@ namespace Business_Logic.Services.Teacher
 				.Where(x => assignmentIds.Contains(x.Id))
 				.ToListAsync();
 
-			var submissions = await _context.Submissions
+			var submissions = await _context.StudentLabAssignments
 				.Where(s => s.StudentId == studentId && assignmentIds.Contains(s.AssignmentId))
 				.ToListAsync();
 

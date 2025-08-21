@@ -1,4 +1,6 @@
-﻿namespace LabAssistantOPP_LAO.Models.Entities;
+﻿using LabAssistantOPP_LAO.Models.Entities;
+
+namespace LabAssistantOPP_LAO.Models.Entities;
 
 public class Problem
 {

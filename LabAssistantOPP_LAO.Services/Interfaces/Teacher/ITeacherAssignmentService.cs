@@ -9,9 +9,9 @@ namespace Business_Logic.Interfaces.Teacher
 {
 	public interface ITeacherAssignmentService
 	{
-		Task<List<AssignmentDto>> GetAssignmentsByClassAsync(string classId);
-		Task<AssignmentDto> GetAssignmentDetailAsync(string assignmentId);
-		Task<string> CreateAssignmentAsync(string classId, string teacherId, CreateAssignmentRequest request);
+		Task<List<AssignmentDto>> GetAssignmentsByClassAsync(int classId);
+		Task<AssignmentDto?> GetAssignmentDetailAsync(int assignmentId);
+		Task<int> CreateAssignmentAsync(int classId, int teacherId, CreateAssignmentRequest request);
 		Task<bool> UpdateAssignmentAsync(UpdateAssignmentRequest request);
 	}
 }

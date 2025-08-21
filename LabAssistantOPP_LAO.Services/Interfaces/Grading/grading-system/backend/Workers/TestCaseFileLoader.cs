@@ -4,7 +4,7 @@ namespace Business_Logic.Interfaces.Workers.Grading
 {
 	public static class TestCaseFileLoader
 	{
-		public static List<TestCase> LoadTestCasesFromFolder(string folderPath, string problemId)
+		public static List<TestCase> LoadTestCasesFromFolder(string folderPath, int assignmentId, int? systemUserId = null)
 		{
 			var testCases = new List<TestCase>();
 
@@ -18,14 +18,14 @@ namespace Business_Logic.Interfaces.Workers.Grading
 
 				var testCase = new TestCase
 				{
-					Id = $"{problemId}_tc{i + 1}",  // ID định danh duy nhất
-					AssignmentId = problemId,
+					// Id không cần set vì DB sẽ tự tăng
+					AssignmentId = assignmentId,
 					Input = input,
-					ExpectedOutput = output,            // Có thể sửa nếu cần
+					ExpectedOutput = output,
 					CreatedAt = DateTime.UtcNow,
-					CreatedBy = "system",
+					CreatedBy = systemUserId,
 					UpdatedAt = DateTime.UtcNow,
-					UpdatedBy = "system"
+					UpdatedBy = systemUserId
 				};
 
 				testCases.Add(testCase);

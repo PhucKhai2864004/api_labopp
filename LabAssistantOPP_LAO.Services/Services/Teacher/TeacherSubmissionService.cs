@@ -14,22 +14,22 @@ namespace Business_Logic.Services.Teacher
 {
 	public class TeacherSubmissionService : ITeacherSubmissionService
 	{
-		private readonly LabOppContext _context;
+		private readonly LabOopChangeV6Context _context;
 
-		public TeacherSubmissionService(LabOppContext context)
+		public TeacherSubmissionService(LabOopChangeV6Context context)
 		{
 			_context = context;
 		}
 
-		public async Task<List<SubmissionDto>> GetSubmissionsWaitingReviewAsync(string classId, SubmissionStatus? status = null)
+		public async Task<List<SubmissionDto>> GetSubmissionsWaitingReviewAsync(int classId, SubmissionStatus? status = null)
 		{
 			var assignmentIds = await _context.ClassHasLabAssignments
 				.Where(x => x.ClassId == classId)
 				.Select(x => x.AssignmentId)
 				.ToListAsync();
 
-			var query = _context.Submissions
-				.Include(x => x.Feedbacks)
+			var query = _context.StudentLabAssignments
+				.Include(x => x.Student)
 				.Where(s => assignmentIds.Contains(s.AssignmentId));
 
 			if (status.HasValue)
@@ -41,32 +41,27 @@ namespace Business_Logic.Services.Teacher
 				.OrderByDescending(s => s.SubmittedAt)
 				.ToListAsync();
 
-			// Load related data (Users, Files)
-			var users = await _context.Users.ToDictionaryAsync(u => u.Id, u => u.Name);
-			var files = await _context.Files.ToDictionaryAsync(f => f.Id, f => f.Path);
-
 			return submissions.Select(s => new SubmissionDto
 			{
 				Id = s.Id,
-				StudentName = users.ContainsKey(s.StudentId) ? users[s.StudentId] : "N/A",
+				StudentName = s.Student?.Name ?? "N/A",
 				AssignmentCode = s.AssignmentId,
 				SubmittedAt = s.SubmittedAt ?? DateTime.MinValue,
 				LOC = s.LocResult ?? 0,
 				Status = s.Status,
-				FilePath = files.ContainsKey(s.ZipCode) ? files[s.ZipCode] : "",
-				Comment = s.Feedbacks.Any() ? s.Feedbacks.First().Comment : "No feedback yet"
+				FilePath = s.SubmissionZip ?? "",
+				Comment = s.ManualReason ?? "No feedback yet"
 			}).ToList();
 		}
 
 
-		public async Task<SubmissionDetailDto> GetSubmissionDetailAsync(string submissionId)
+		public async Task<SubmissionDetailDto> GetSubmissionDetailAsync(int submissionId)
 		{
-			var s = await _context.Submissions
+			var s = await _context.StudentLabAssignments
 				.Include(x => x.Student)
 				.Include(x => x.Assignment)
-				.Include(x => x.Feedbacks)
 				.Include(x => x.TestCaseResults)
-				.Include(x => x.ZipCodeNavigation)
+				.ThenInclude(t => t.TestCase)
 				.FirstOrDefaultAsync(x => x.Id == submissionId);
 
 			if (s == null) return null;
@@ -85,9 +80,9 @@ namespace Business_Logic.Services.Teacher
 				LOC = s.LocResult ?? 0,
 				Status = s.Status ?? "Unknown",
 
-				FilePath = s.ZipCodeNavigation?.Path ?? "",
+				FilePath = s.SubmissionZip ?? "",
 
-				Feedbacks = s.Feedbacks.Select(f => f.Comment).ToList(),
+				Feedbacks = string.IsNullOrEmpty(s.ManualReason) ? new List<string>() : new List<string> { s.ManualReason },
 
 				TestCaseResults = s.TestCaseResults.Select(t => new TestCaseResultDto
 				{
@@ -99,39 +94,23 @@ namespace Business_Logic.Services.Teacher
 			};
 		}
 
-		public async Task<bool> GradeSubmissionAsync(string submissionId, bool isPass)
+		public async Task<bool> GradeSubmissionAsync(int submissionId, bool isPass)
 		{
-			var submission = await _context.Submissions.FindAsync(submissionId);
+			var submission = await _context.StudentLabAssignments.FindAsync(submissionId);
 			if (submission == null) return false;
 
 			submission.Status = isPass ? "Passed" : "Reject";
-			submission.UpdatedAt = DateTime.UtcNow;
 			await _context.SaveChangesAsync();
 			return true;
 		}
 
-		public async Task<bool> SubmitFeedbackAsync(string submissionId, string teacherId, string comment)
+		public async Task<bool> SubmitFeedbackAsync(int submissionId, int teacherId, string comment)
 		{
-			var feedback = await _context.Feedbacks.FirstOrDefaultAsync(f => f.SubmissionId == submissionId);
+			var submission = await _context.StudentLabAssignments.FindAsync(submissionId);
+			if (submission == null) return false;
 
-			if (feedback == null)
-			{
-				feedback = new Feedback
-				{
-					Id = Guid.NewGuid().ToString(),
-					SubmissionId = submissionId,
-					TeacherId = teacherId,
-					Comment = comment,
-					CreatedAt = DateTime.UtcNow,
-					UpdatedAt = DateTime.UtcNow
-				};
-				await _context.Feedbacks.AddAsync(feedback);
-			}
-			else
-			{
-				feedback.Comment = comment;
-				feedback.UpdatedAt = DateTime.UtcNow;
-			}
+			submission.ManualReason = comment;
+			submission.ManuallyEdited = true;
 
 			await _context.SaveChangesAsync();
 			return true;

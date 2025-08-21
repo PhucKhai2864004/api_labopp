@@ -20,9 +20,9 @@ namespace Business_Logic.Services
 	public class AuthService : IAuthService
 	{
 		private readonly IConfiguration _config;
-		private readonly LabOppContext _context;
+		private readonly LabOopChangeV6Context _context;
 
-		public AuthService(IConfiguration config, LabOppContext context)
+		public AuthService(IConfiguration config, LabOopChangeV6Context context)
 		{
 			_config = config;
 			_context = context;
@@ -35,14 +35,16 @@ namespace Business_Logic.Services
 				Audience = new[] { _config["GoogleAuth:ClientId"] }
 			});
 
-			var user = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Email == payload.Email);
+			var user = await _context.Users
+				.Include(u => u.Role)
+				.FirstOrDefaultAsync(u => u.Email == payload.Email);
 
 			if (user == null)
 			{
 				return ApiResponse<AuthResponse>.ErrorResponse("Tài khoản không tồn tại trong hệ thống");
 			}
 
-			if ((bool)!user.IsActive)
+			if (!user.IsActive)
 			{
 				return ApiResponse<AuthResponse>.ErrorResponse("Tài khoản đã bị khóa");
 			}
@@ -63,22 +65,87 @@ namespace Business_Logic.Services
 		public async Task<AuthResponse> LoginWithCredentialsAsync(CredentialsLoginRequest request)
 		{
 			var user = await _context.Users.Include(u => u.Role)
-				.FirstOrDefaultAsync(u => u.UserName == request.UserName);
+		.FirstOrDefaultAsync(u => u.UserName == request.UserName);
 
-			if (user == null || (bool)!user.IsActive)
+			if (user == null || !user.IsActive)
 				throw new UnauthorizedAccessException("User not found or inactive");
 
 			if (user.Password != request.Password)
 				throw new UnauthorizedAccessException("Incorrect password");
 
-			return new AuthResponse
+			var response = new AuthResponse
 			{
 				UserId = user.Id,
 				Email = user.Email,
 				Role = user.Role?.Name,
 				Token = GenerateJwt(user)
 			};
+
+			// Nếu là student -> kiểm tra lớp đang start
+			if (user.Role?.Name == "Student")
+			{
+				var studentClassIds = await _context.StudentInClasses
+					.Where(sic => sic.StudentId == user.Id)
+					.Select(sic => sic.ClassId)
+					.ToListAsync();
+
+				var now = DateTime.UtcNow;
+				var activeClass = await _context.ClassSlots
+					.Where(cs => studentClassIds.Contains(cs.ClassId)
+								 && cs.IsEnabled
+								 && cs.StartTime <= now
+								 && cs.EndTime >= now)
+					.FirstOrDefaultAsync();
+
+				if (activeClass != null)
+				{
+					response.IsClassActive = true;
+					response.ActiveClassId = activeClass.ClassId;
+				}
+			}
+
+			return response;
 		}
+
+//		// Nếu là student -> kiểm tra lớp đang start
+//			if (user.Role?.Name == "Student")
+//			{
+//				var studentClassIds = await _context.StudentInClasses
+//					.Where(sic => sic.StudentId == user.Id)
+//					.Select(sic => sic.ClassId)
+//					.ToListAsync();
+
+//		var now = DateTime.UtcNow;
+
+//		// Tìm slot đang active
+//		var activeClass = await _context.ClassSlots
+//			.Where(cs => studentClassIds.Contains(cs.ClassId)
+//						 && cs.IsEnabled
+//						 && cs.StartTime <= now
+//						 && cs.EndTime >= now)
+//			.FirstOrDefaultAsync();
+
+//				if (activeClass != null)
+//				{
+//					response.IsClassActive = true;
+//					response.ActiveClassId = activeClass.ClassId;
+//				}
+//				else
+//				{
+//					// 🔒 Nếu có slot nhưng chưa tới giờ thì chặn login
+//					var upcomingClass = await _context.ClassSlots
+//						.Where(cs => studentClassIds.Contains(cs.ClassId)
+//									 && cs.IsEnabled
+//									 && cs.StartTime > now)
+//						.OrderBy(cs => cs.StartTime)
+//						.FirstOrDefaultAsync();
+
+//					if (upcomingClass != null)
+//					{
+//						throw new UnauthorizedAccessException("Chưa đến giờ học, không thể đăng nhập");
+//}
+//				}
+//			}
 
 
 		private string GenerateJwt(User user)
@@ -92,12 +159,12 @@ namespace Business_Logic.Services
 
 			var claims = new[]
 			{
-		new Claim(JwtRegisteredClaimNames.Sub, user.Id),
-		new Claim(JwtRegisteredClaimNames.Email, user.Email),
-		new Claim(ClaimTypes.Role, user.Role.Name), // ✅ dùng role từ DB
-        new Claim("userId", user.Id),
-        new Claim(ClaimTypes.NameIdentifier, user.Id)
-    };
+				new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),   // 🔑 ép int -> string
+                new Claim(JwtRegisteredClaimNames.Email, user.Email),
+				new Claim(ClaimTypes.Role, user.Role.Name),
+				new Claim("userId", user.Id.ToString()),
+				new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
+			};
 
 			var token = new JwtSecurityToken(
 				issuer: jwtSettings["Issuer"],

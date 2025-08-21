@@ -8,7 +8,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs
 {
     public class ClassPassRateDto
     {
-        public string ClassId { get; set; }
+        public int ClassId { get; set; }
         public string ClassName { get; set; }
         public int TotalStudents { get; set; }
         public int StudentsPassed { get; set; }

@@ -5,17 +5,17 @@ namespace LabAssistantOPP_LAO.Models.Entities;
 
 public partial class TestCaseResult
 {
-    public string Id { get; set; } = null!;
+    public int Id { get; set; }
 
-    public string? SubmissionId { get; set; }
+    public int StudentLabAssignmentId { get; set; }
 
-    public string? TestCaseId { get; set; }
+    public int TestCaseId { get; set; }
 
     public string? ActualOutput { get; set; }
 
     public bool? IsPassed { get; set; }
 
-    public virtual Submission? Submission { get; set; }
+    public virtual StudentLabAssignment StudentLabAssignment { get; set; } = null!;
 
-    public virtual TestCase? TestCase { get; set; }
+    public virtual TestCase TestCase { get; set; } = null!;
 }

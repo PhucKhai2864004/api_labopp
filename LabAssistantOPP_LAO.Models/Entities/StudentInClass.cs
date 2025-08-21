@@ -5,13 +5,13 @@ namespace LabAssistantOPP_LAO.Models.Entities;
 
 public partial class StudentInClass
 {
-    public string Id { get; set; } = null!;
+    public int Id { get; set; }
 
-    public string? ClassId { get; set; }
+    public int ClassId { get; set; }
 
-    public string? StudentId { get; set; }
+    public int StudentId { get; set; }
 
-    public virtual Class? Class { get; set; }
+    public virtual Class Class { get; set; } = null!;
 
-    public virtual User? Student { get; set; }
+    public virtual User Student { get; set; } = null!;
 }
