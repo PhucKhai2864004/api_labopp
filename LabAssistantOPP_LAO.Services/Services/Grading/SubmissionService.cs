@@ -94,6 +94,7 @@ namespace Business_Logic.Services.Grading
 				existing.SubmittedAt = DateTime.UtcNow;
 				existing.LocResult = 0;
 				existing.ManuallyEdited = false;
+				existing.Status = dto.Status;
 
 				_context.StudentLabAssignments.Update(existing);
 				await _context.SaveChangesAsync();
@@ -104,7 +105,8 @@ namespace Business_Logic.Services.Grading
 					SubmissionId = existing.Id,
 					ProblemId = dto.ProblemId,
 					MainClass = mainClass,
-					WorkDir = folder // container path hợp lệ
+					WorkDir = folder, // container path hợp lệ
+					Status = dto.Status
 				};
 
 				return existing.Id;
@@ -118,7 +120,7 @@ namespace Business_Logic.Services.Grading
 					StudentId = dto.StudentId,
 					SemesterId = dto.SemesterId,
 					SubmissionZip = submissionZipRelative,
-					Status = "Draft", // mặc định
+					Status = dto.Status, // mặc định
 					SubmittedAt = DateTime.UtcNow,
 					LocResult = 0,
 					ManuallyEdited = false
@@ -133,7 +135,8 @@ namespace Business_Logic.Services.Grading
 					SubmissionId = sla.Id,
 					ProblemId = dto.ProblemId,
 					MainClass = mainClass,
-					WorkDir = folder
+					WorkDir = folder,
+					Status = dto.Status
 				};
 
 				return sla.Id;

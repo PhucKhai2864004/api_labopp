@@ -71,9 +71,10 @@ builder.Services.AddScoped<IRedisService, RedisService>();
 builder.Services.AddCap(x =>
 {
     x.UseRedis(builder.Configuration.GetConnectionString("Redis"));
-    // hoặc cấu hình từ appsettings
-    x.UseInMemoryStorage(); // dùng bộ nhớ tạm (thay bằng EF nếu có DB)
-	x.FailedRetryCount = 3;
+	// hoặc cấu hình từ appsettings
+	x.UseEntityFramework<LabOopChangeV6Context>(); // dùng bộ nhớ tạm (thay bằng EF nếu có DB)
+	x.FailedRetryCount = 5;
+	x.FailedRetryInterval = 10;
 });
 
 
