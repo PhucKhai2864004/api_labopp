@@ -81,6 +81,29 @@ namespace Business_Logic.Services
 				Token = GenerateJwt(user)
 			};
 
+			//// Nếu là student -> kiểm tra lớp đang start
+			//if (user.Role?.Name == "Student")
+			//{
+			//	var studentClassIds = await _context.StudentInClasses
+			//		.Where(sic => sic.StudentId == user.Id)
+			//		.Select(sic => sic.ClassId)
+			//		.ToListAsync();
+
+			//	var now = DateTime.UtcNow;
+			//	var activeClass = await _context.ClassSlots
+			//		.Where(cs => studentClassIds.Contains(cs.ClassId)
+			//					 && cs.IsEnabled
+			//					 && cs.StartTime <= now
+			//					 && cs.EndTime >= now)
+			//		.FirstOrDefaultAsync();
+
+			//	if (activeClass != null)
+			//	{
+			//		response.IsClassActive = true;
+			//		response.ActiveClassId = activeClass.ClassId;
+			//	}
+			//}
+
 			// Nếu là student -> kiểm tra lớp đang start
 			if (user.Role?.Name == "Student")
 			{
@@ -90,6 +113,8 @@ namespace Business_Logic.Services
 					.ToListAsync();
 
 				var now = DateTime.UtcNow;
+
+				// Tìm slot đang active
 				var activeClass = await _context.ClassSlots
 					.Where(cs => studentClassIds.Contains(cs.ClassId)
 								 && cs.IsEnabled
@@ -102,50 +127,27 @@ namespace Business_Logic.Services
 					response.IsClassActive = true;
 					response.ActiveClassId = activeClass.ClassId;
 				}
+				else
+				{
+					// 🔒 Nếu có slot nhưng chưa tới giờ thì chặn login
+					var upcomingClass = await _context.ClassSlots
+						.Where(cs => studentClassIds.Contains(cs.ClassId)
+									 && cs.IsEnabled
+									 && cs.StartTime > now)
+						.OrderBy(cs => cs.StartTime)
+						.FirstOrDefaultAsync();
+
+					if (upcomingClass != null)
+					{
+						throw new UnauthorizedAccessException("Chưa đến giờ học, không thể đăng nhập");
+					}
+				}
 			}
 
 			return response;
 		}
 
-//		// Nếu là student -> kiểm tra lớp đang start
-//			if (user.Role?.Name == "Student")
-//			{
-//				var studentClassIds = await _context.StudentInClasses
-//					.Where(sic => sic.StudentId == user.Id)
-//					.Select(sic => sic.ClassId)
-//					.ToListAsync();
-
-//		var now = DateTime.UtcNow;
-
-//		// Tìm slot đang active
-//		var activeClass = await _context.ClassSlots
-//			.Where(cs => studentClassIds.Contains(cs.ClassId)
-//						 && cs.IsEnabled
-//						 && cs.StartTime <= now
-//						 && cs.EndTime >= now)
-//			.FirstOrDefaultAsync();
-
-//				if (activeClass != null)
-//				{
-//					response.IsClassActive = true;
-//					response.ActiveClassId = activeClass.ClassId;
-//				}
-//				else
-//				{
-//					// 🔒 Nếu có slot nhưng chưa tới giờ thì chặn login
-//					var upcomingClass = await _context.ClassSlots
-//						.Where(cs => studentClassIds.Contains(cs.ClassId)
-//									 && cs.IsEnabled
-//									 && cs.StartTime > now)
-//						.OrderBy(cs => cs.StartTime)
-//						.FirstOrDefaultAsync();
-
-//					if (upcomingClass != null)
-//					{
-//						throw new UnauthorizedAccessException("Chưa đến giờ học, không thể đăng nhập");
-//}
-//				}
-//			}
+		
 
 
 		private string GenerateJwt(User user)
