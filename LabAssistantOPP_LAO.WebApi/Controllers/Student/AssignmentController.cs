@@ -274,6 +274,41 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
 			return Ok(ApiResponse<object>.SuccessResponse(classes, "Danh sách lớp của bạn"));
 		}
 
+		[HttpGet("download-pdf/{id}")]
+		public async Task<IActionResult> DownloadPdf(int id)
+		{
+			var doc = await _context.AssignmentDocuments.FindAsync(id);
+			if (doc == null || string.IsNullOrEmpty(doc.FilePath))
+				return NotFound("Không tìm thấy tài liệu PDF");
+
+			// Ghép wwwroot + đường dẫn trong DB
+			var filePath = Path.Combine("wwwroot", doc.FilePath.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString()));
+
+			if (!System.IO.File.Exists(filePath))
+				return NotFound("File không tồn tại trên server");
+
+			var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+			return File(fileBytes, doc.MimeType ?? "application/pdf", doc.FileName);
+		}
+
+
+		[HttpGet("download-submission/{submissionId}")]
+		public async Task<IActionResult> DownloadSubmission(int submissionId)
+		{
+			var sla = await _context.StudentLabAssignments.FindAsync(submissionId);
+			if (sla == null || string.IsNullOrEmpty(sla.SubmissionZip))
+				return NotFound("Không tìm thấy submission");
+
+			var filePath = Path.Combine("wwwroot", sla.SubmissionZip.Replace("/", Path.DirectorySeparatorChar.ToString()));
+
+			if (!System.IO.File.Exists(filePath))
+				return NotFound("File không tồn tại trên server");
+
+			var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+			return File(fileBytes, "application/zip", Path.GetFileName(filePath));
+		}
+
+
 		//[HttpGet("download-pdf/{assignmentId:int}")]
 		//[AllowAnonymous]
 		//public async Task<IActionResult> DownloadPdf(int assignmentId)
