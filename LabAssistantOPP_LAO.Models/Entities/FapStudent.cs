@@ -15,7 +15,21 @@ public partial class FapStudent
 
     public int ClassId { get; set; }
 
-    public virtual FapClass Class { get; set; } = null!;
+	public string? Major { get; set; }
+
+	public DateOnly? DateOfBirth { get; set; }
+
+	public string? Phone { get; set; }
+
+	public bool? Gender { get; set; }
+
+	public string? Address { get; set; }
+
+	public string? Username { get; set; }
+
+	public string? Password { get; set; }
+
+	public virtual FapClass Class { get; set; } = null!;
 
     public virtual FapSemester Semester { get; set; } = null!;
 }

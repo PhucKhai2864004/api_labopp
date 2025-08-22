@@ -33,6 +33,8 @@ public partial class LabOopChangeV6Context : DbContext
 
     public virtual DbSet<FapClass> FapClasses { get; set; }
 
+    public virtual DbSet<FapClassSlot> FapClassSlots { get; set; }
+
     public virtual DbSet<FapSemester> FapSemesters { get; set; }
 
     public virtual DbSet<FapStudent> FapStudents { get; set; }
@@ -311,7 +313,11 @@ public partial class LabOopChangeV6Context : DbContext
             entity.HasIndex(e => e.Code, "UQ__FAP_Clas__357D4CF9C7AD1A39").IsUnique();
 
             entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.Code)
+			entity.Property(e => e.AcademicYear)
+				.HasMaxLength(20)
+				.IsUnicode(false)
+				.HasColumnName("academic_year");
+			entity.Property(e => e.Code)
                 .HasMaxLength(50)
                 .IsUnicode(false)
                 .HasColumnName("code");
@@ -319,14 +325,49 @@ public partial class LabOopChangeV6Context : DbContext
                 .HasMaxLength(100)
                 .HasColumnName("name");
             entity.Property(e => e.SemesterId).HasColumnName("semester_id");
+			entity.Property(e => e.SubjectCode)
+			   .HasMaxLength(50)
+			   .IsUnicode(false)
+			   .HasColumnName("subject_code");
+			entity.Property(e => e.TeacherCode)
+				.HasMaxLength(50)
+				.IsUnicode(false)
+				.HasColumnName("teacher_code");
 
-            entity.HasOne(d => d.Semester).WithMany(p => p.FapClasses)
+			entity.HasOne(d => d.Semester).WithMany(p => p.FapClasses)
                 .HasForeignKey(d => d.SemesterId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__FAP_Class__semes__17F790F9");
         });
 
-        modelBuilder.Entity<FapSemester>(entity =>
+		modelBuilder.Entity<FapClassSlot>(entity =>
+		{
+			entity.HasKey(e => e.Id).HasName("PK__FAP_Clas__3213E83F3BA1B39F");
+
+			entity.ToTable("FAP_Class_Slot");
+
+			entity.HasIndex(e => new { e.ClassId, e.SlotNo }, "UQ_FAP_Class_Slot").IsUnique();
+
+			entity.Property(e => e.Id).HasColumnName("id");
+			entity.Property(e => e.ClassId).HasColumnName("class_id");
+			entity.Property(e => e.EndTime).HasColumnName("end_time");
+			entity.Property(e => e.IsEnabled).HasColumnName("is_enabled");
+			entity.Property(e => e.Note)
+				.HasMaxLength(500)
+				.HasColumnName("note");
+			entity.Property(e => e.ServerEndpoint)
+				.HasMaxLength(500)
+				.HasColumnName("server_endpoint");
+			entity.Property(e => e.SlotNo).HasColumnName("slot_no");
+			entity.Property(e => e.StartTime).HasColumnName("start_time");
+
+			entity.HasOne(d => d.Class).WithMany(p => p.FapClassSlots)
+				.HasForeignKey(d => d.ClassId)
+				.OnDelete(DeleteBehavior.ClientSetNull)
+				.HasConstraintName("FK__FAP_Class__class__3E1D39E1");
+		});
+
+		modelBuilder.Entity<FapSemester>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__FAP_Seme__3213E83FEA94FDD2");
 
@@ -339,10 +380,12 @@ public partial class LabOopChangeV6Context : DbContext
                 .HasMaxLength(20)
                 .IsUnicode(false)
                 .HasColumnName("code");
-            entity.Property(e => e.Name)
+			entity.Property(e => e.EndDate).HasColumnName("end_date");
+			entity.Property(e => e.Name)
                 .HasMaxLength(100)
                 .HasColumnName("name");
-        });
+			entity.Property(e => e.StartDate).HasColumnName("start_date");
+		});
 
         modelBuilder.Entity<FapStudent>(entity =>
         {
@@ -353,17 +396,37 @@ public partial class LabOopChangeV6Context : DbContext
             entity.HasIndex(e => e.StudentCode, "UQ__FAP_Stud__6DF33C45B31DFADC").IsUnique();
 
             entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.ClassId).HasColumnName("class_id");
-            entity.Property(e => e.Name)
+			entity.Property(e => e.Address)
+				.HasMaxLength(500)
+				.HasColumnName("address");
+			entity.Property(e => e.ClassId).HasColumnName("class_id");
+			entity.Property(e => e.DateOfBirth).HasColumnName("date_of_birth");
+			entity.Property(e => e.Gender).HasColumnName("gender");
+			entity.Property(e => e.Major)
+				.HasMaxLength(255)
+				.HasColumnName("major");
+			entity.Property(e => e.Name)
                 .HasMaxLength(100)
                 .HasColumnName("name");
-            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
+			entity.Property(e => e.Password)
+				.HasMaxLength(255)
+				.IsUnicode(false)
+				.HasColumnName("password");
+			entity.Property(e => e.Phone)
+				.HasMaxLength(20)
+				.IsUnicode(false)
+				.HasColumnName("phone");
+			entity.Property(e => e.SemesterId).HasColumnName("semester_id");
             entity.Property(e => e.StudentCode)
                 .HasMaxLength(50)
                 .IsUnicode(false)
                 .HasColumnName("student_code");
+			entity.Property(e => e.Username)
+				.HasMaxLength(100)
+				.IsUnicode(false)
+				.HasColumnName("username");
 
-            entity.HasOne(d => d.Class).WithMany(p => p.FapStudents)
+			entity.HasOne(d => d.Class).WithMany(p => p.FapStudents)
                 .HasForeignKey(d => d.ClassId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__FAP_Stude__class__1CBC4616");
