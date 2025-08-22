@@ -51,7 +51,7 @@ namespace Business_Logic.Services.Grading
 		public async Task<int> SaveSubmissionAsync(SubmitCodeDto dto)
 		{
 			// Path wwwroot/submissions
-			var relativeFolder = Path.Combine("wwwroot", "submissions", $"{dto.StudentId}_{dto.ProblemId}_{dto.SemesterId}");
+			var relativeFolder = Path.Combine("submissions", $"{dto.StudentId}_{dto.ProblemId}_{dto.SemesterId}");
 			var folder = Path.Combine(Directory.GetCurrentDirectory(), relativeFolder);
 			if (!Directory.Exists(folder))
 				Directory.CreateDirectory(folder);
@@ -83,9 +83,10 @@ namespace Business_Logic.Services.Grading
 			var mainClass = DetectMainClass(folder);
 
 			string submissionZipRelative = Path.GetRelativePath(
-					Directory.GetCurrentDirectory(),
+					Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"),
 					zipPath
 				).Replace("\\", "/");
+
 
 			if (existing != null)
 			{

@@ -68,138 +68,145 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
             return Ok(ApiResponse<string>.SuccessResponse(success ? "Updated" : "Not found"));
         }
 
-        [HttpGet("view-submission")]
-        public async Task<IActionResult> ViewJavaFileFromZip(string zipPath, string javaFileName)
-        {
-            if (!System.IO.File.Exists(zipPath))
-                return NotFound("File zip không tồn tại.");
+        //[HttpGet("view-submission")]
+        //public async Task<IActionResult> ViewJavaFileFromZip(string zipPath, string javaFileName)
+        //{
+        //    if (!System.IO.File.Exists(zipPath))
+        //        return NotFound("File zip không tồn tại.");
 
-            using var archive = ZipFile.OpenRead(zipPath);
-            var entry = archive.Entries.FirstOrDefault(e => e.FullName.EndsWith(javaFileName));
+        //    using var archive = ZipFile.OpenRead(zipPath);
+        //    var entry = archive.Entries.FirstOrDefault(e => e.FullName.EndsWith(javaFileName));
 
-            if (entry == null)
-                return NotFound("Không tìm thấy file .java.");
+        //    if (entry == null)
+        //        return NotFound("Không tìm thấy file .java.");
 
-            using var reader = new StreamReader(entry.Open(), Encoding.UTF8);
-            var content = await reader.ReadToEndAsync();
+        //    using var reader = new StreamReader(entry.Open(), Encoding.UTF8);
+        //    var content = await reader.ReadToEndAsync();
 
-            return Content(content, "text/plain", Encoding.UTF8);
-        }
+        //    return Content(content, "text/plain", Encoding.UTF8);
+        //}
 
-        [HttpGet("view-java/{studentId}/{classId}/{assignmentId}")]
-        public IActionResult ViewJavaFiles(string studentId, string classId, string assignmentId)
-        {
-            // Tên file nộp bài của sinh viên
-            var fileName = $"{studentId}_{classId}_{assignmentId}.zip";
-            var zipPath = Path.Combine("wwwroot", "uploads", "zips", fileName);
+		[HttpGet("view-java/{submissionId}")]
+		public async Task<IActionResult> ViewJavaFiles(int submissionId)
+		{
+			var sla = await _context.StudentLabAssignments.FindAsync(submissionId);
+			if (sla == null || string.IsNullOrEmpty(sla.SubmissionZip))
+				return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy submission"));
 
+			var zipPath = Path.Combine("wwwroot", sla.SubmissionZip.Replace("/", Path.DirectorySeparatorChar.ToString()));
 
-            if (!System.IO.File.Exists(zipPath))
-                return NotFound("Không tìm thấy file zip");
+			if (!System.IO.File.Exists(zipPath))
+				return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy file zip"));
 
-            var result = new Dictionary<string, string>();
+			var result = new Dictionary<string, string>();
 
-            try
-            {
-                using (var archive = ZipFile.OpenRead(zipPath))
-                {
-                    foreach (var entry in archive.Entries)
-                    {
-                        // Bỏ qua thư mục và chỉ lấy file .java
-                        if (!entry.FullName.EndsWith(".java", StringComparison.OrdinalIgnoreCase) || entry.Length == 0)
-                            continue;
+			try
+			{
+				using (var archive = ZipFile.OpenRead(zipPath))
+				{
+					foreach (var entry in archive.Entries)
+					{
+						if (!entry.FullName.EndsWith(".java", StringComparison.OrdinalIgnoreCase) || entry.Length == 0)
+							continue;
 
-                        using (var reader = new StreamReader(entry.Open(), Encoding.UTF8))
-                        {
-                            var content = reader.ReadToEnd();
-                            result[entry.FullName] = content;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, "Lỗi xử lý file zip: " + ex.Message);
-            }
+						using (var reader = new StreamReader(entry.Open(), Encoding.UTF8))
+						{
+							var content = await reader.ReadToEndAsync();
+							result[entry.FullName] = content;
+						}
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, ApiResponse<string>.ErrorResponse("Lỗi xử lý file zip: " + ex.Message));
+			}
 
-            return Ok(ApiResponse<Dictionary<string,string>>.SuccessResponse(result,"Return"));
-        }
-
-
-        //Lấy danh sách tên file .java
-        [HttpGet("list-java/{studentId}/{classId}/{assignmentId}")]
-        public IActionResult ListJavaFiles(string studentId, string classId, string assignmentId)
-        {
-            var fileName = $"{studentId}_{classId}_{assignmentId}.zip";
-            var zipPath = Path.Combine("wwwroot", "uploads", "zips", fileName);
-
-            if (!System.IO.File.Exists(zipPath))
-                return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy file zip"));
-
-            var javaFiles = new List<string>();
-
-            try
-            {
-                using (var archive = ZipFile.OpenRead(zipPath))
-                {
-                    foreach (var entry in archive.Entries)
-                    {
-                        if (entry.FullName.EndsWith(".java", StringComparison.OrdinalIgnoreCase) && entry.Length > 0)
-                        {
-                            javaFiles.Add(entry.FullName);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ApiResponse<string>.ErrorResponse("Lỗi xử lý file zip: " + ex.Message));
-            }
-
-            return Ok(ApiResponse<List<string>>.SuccessResponse(javaFiles, "Danh sách file .java"));
-        }
+			return Ok(ApiResponse<Dictionary<string, string>>.SuccessResponse(result, "Danh sách file .java và nội dung"));
+		}
 
 
-        //Lấy nội dung của 1 file .java
-        [HttpGet("java-content/{studentId}/{classId}/{assignmentId}")]
-        public IActionResult GetJavaFileContent(string studentId, string classId, string assignmentId, [FromQuery] string fileName)
-        {
-            if (string.IsNullOrEmpty(fileName))
-                return BadRequest(ApiResponse<string>.ErrorResponse("Thiếu tên file"));
+		[HttpGet("list-java/{submissionId}")]
+		public async Task<IActionResult> ListJavaFiles(int submissionId)
+		{
+			var sla = await _context.StudentLabAssignments.FindAsync(submissionId);
+			if (sla == null || string.IsNullOrEmpty(sla.SubmissionZip))
+				return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy submission"));
 
-            var zipFileName = $"{studentId}_{classId}_{assignmentId}.zip";
-            var zipPath = Path.Combine("wwwroot", "uploads", "zips", zipFileName);
+			// Ghép wwwroot + path trong DB
+			var zipPath = Path.Combine("wwwroot", sla.SubmissionZip.Replace("/", Path.DirectorySeparatorChar.ToString()));
 
-            if (!System.IO.File.Exists(zipPath))
-                return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy file zip"));
+			if (!System.IO.File.Exists(zipPath))
+				return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy file zip"));
 
-            try
-            {
-                using (var archive = ZipFile.OpenRead(zipPath))
-                {
-                    var entry = archive.Entries.FirstOrDefault(e =>
-                        e.FullName.Equals(fileName, StringComparison.OrdinalIgnoreCase));
+			var javaFiles = new List<string>();
 
-                    if (entry == null)
-                        return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy file trong zip"));
+			try
+			{
+				using (var archive = ZipFile.OpenRead(zipPath))
+				{
+					foreach (var entry in archive.Entries)
+					{
+						if (entry.FullName.EndsWith(".java", StringComparison.OrdinalIgnoreCase) && entry.Length > 0)
+						{
+							javaFiles.Add(entry.FullName);
+						}
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, ApiResponse<string>.ErrorResponse("Lỗi xử lý file zip: " + ex.Message));
+			}
 
-                    using (var reader = new StreamReader(entry.Open(), Encoding.UTF8))
-                    {
-                        var content = reader.ReadToEnd();
-                        return Ok(ApiResponse<string>.SuccessResponse(content, "Nội dung file"));
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ApiResponse<string>.ErrorResponse("Lỗi xử lý file zip: " + ex.Message));
-            }
-        }
+			return Ok(ApiResponse<List<string>>.SuccessResponse(javaFiles, "Danh sách file .java"));
+		}
 
 
 
-        // 🔁 Reusable method for extracting validation error messages
-        private ApiResponse<string> ValidationErrorResponse()
+		//Lấy nội dung của 1 file .java
+		[HttpGet("java-content/{submissionId}")]
+		public async Task<IActionResult> GetJavaFileContent(int submissionId, [FromQuery] string fileName)
+		{
+			if (string.IsNullOrEmpty(fileName))
+				return BadRequest(ApiResponse<string>.ErrorResponse("Thiếu tên file"));
+
+			var sla = await _context.StudentLabAssignments.FindAsync(submissionId);
+			if (sla == null || string.IsNullOrEmpty(sla.SubmissionZip))
+				return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy submission"));
+
+			var zipPath = Path.Combine("wwwroot", sla.SubmissionZip.Replace("/", Path.DirectorySeparatorChar.ToString()));
+
+			if (!System.IO.File.Exists(zipPath))
+				return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy file zip"));
+
+			try
+			{
+				using (var archive = ZipFile.OpenRead(zipPath))
+				{
+					var entry = archive.Entries.FirstOrDefault(e =>
+						e.FullName.Equals(fileName, StringComparison.OrdinalIgnoreCase));
+
+					if (entry == null)
+						return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy file trong zip"));
+
+					using (var reader = new StreamReader(entry.Open(), Encoding.UTF8))
+					{
+						var content = await reader.ReadToEndAsync();
+						return Ok(ApiResponse<string>.SuccessResponse(content, "Nội dung file"));
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, ApiResponse<string>.ErrorResponse("Lỗi xử lý file zip: " + ex.Message));
+			}
+		}
+
+
+
+		// 🔁 Reusable method for extracting validation error messages
+		private ApiResponse<string> ValidationErrorResponse()
         {
             var errors = ModelState.Values
                 .SelectMany(v => v.Errors)
