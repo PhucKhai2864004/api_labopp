@@ -74,5 +74,30 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
 			await _context.SaveChangesAsync();
 			return Ok("Class stopped successfully.");
 		}
+
+		// GET: api/teacher/class/status/{classId}
+		[HttpGet("status/{classId}")]
+		public async Task<IActionResult> GetClassStatus(int classId)
+		{
+			var now = DateTime.UtcNow;
+
+			// Tìm slot hiện tại theo thời gian
+			var slot = await _context.ClassSlots
+				.Where(s => s.ClassId == classId && s.StartTime <= now && s.EndTime >= now)
+				.FirstOrDefaultAsync();
+
+			if (slot == null)
+				return NotFound("Không có slot nào đang diễn ra cho class này.");
+
+			return Ok(new
+			{
+				classId = classId,
+				slotId = slot.Id,
+				slotNo = slot.SlotNo,
+				isEnabled = slot.IsEnabled, // ✅ đây là trạng thái mở/tắt
+				startTime = slot.StartTime,
+				endTime = slot.EndTime
+			});
+		}
 	}
 }
