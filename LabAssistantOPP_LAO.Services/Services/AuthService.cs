@@ -114,10 +114,10 @@ namespace Business_Logic.Services
 
 				var now = DateTime.UtcNow;
 
-				// Tìm slot đang active
+				// 🔑 Slot đang active (đúng giờ và IsEnabled = true)
 				var activeClass = await _context.ClassSlots
 					.Where(cs => studentClassIds.Contains(cs.ClassId)
-								 && cs.IsEnabled
+								 && cs.IsEnabled == true
 								 && cs.StartTime <= now
 								 && cs.EndTime >= now)
 					.FirstOrDefaultAsync();
@@ -129,10 +129,23 @@ namespace Business_Logic.Services
 				}
 				else
 				{
-					// 🔒 Nếu có slot nhưng chưa tới giờ thì chặn login
+					// 🔒 Check xem có slot trong giờ nhưng chưa mở (IsEnabled = false)
+					var lockedClass = await _context.ClassSlots
+						.Where(cs => studentClassIds.Contains(cs.ClassId)
+									 && cs.IsEnabled == false
+									 && cs.StartTime <= now
+									 && cs.EndTime >= now)
+						.FirstOrDefaultAsync();
+
+					if (lockedClass != null)
+					{
+						throw new UnauthorizedAccessException("Lớp học đang trong giờ nhưng chưa được mở, không thể đăng nhập");
+					}
+
+					// 🔒 Nếu có slot nhưng chưa tới giờ thì cũng chặn
 					var upcomingClass = await _context.ClassSlots
 						.Where(cs => studentClassIds.Contains(cs.ClassId)
-									 && cs.IsEnabled
+									 && cs.IsEnabled == false
 									 && cs.StartTime > now)
 						.OrderBy(cs => cs.StartTime)
 						.FirstOrDefaultAsync();
