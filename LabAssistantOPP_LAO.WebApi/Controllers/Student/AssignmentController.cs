@@ -277,16 +277,18 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
 		[HttpGet("download-pdf/by-assignment/{assignmentId}")]
 		public async Task<IActionResult> DownloadPdfByAssignment(int assignmentId)
 		{
-			// Lấy document đầu tiên của assignment (nếu có nhiều có thể order thêm)
 			var doc = await _context.AssignmentDocuments
 				.FirstOrDefaultAsync(d => d.AssignmentId == assignmentId);
 
 			if (doc == null || string.IsNullOrEmpty(doc.FilePath))
 				return NotFound("Không tìm thấy tài liệu PDF cho assignment này.");
 
-			// Ghép đường dẫn vật lý
-			var filePath = Path.Combine("wwwroot", doc.FilePath.TrimStart('/')
-				.Replace("/", Path.DirectorySeparatorChar.ToString()));
+			// Ghép đường dẫn thực tế
+			var filePath = Path.Combine(
+				Directory.GetCurrentDirectory(),
+				"wwwroot",
+				doc.FilePath.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString())
+			);
 
 			if (!System.IO.File.Exists(filePath))
 				return NotFound("File không tồn tại trên server");
@@ -305,7 +307,12 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
 			if (sla == null || string.IsNullOrEmpty(sla.SubmissionZip))
 				return NotFound("Không tìm thấy submission");
 
-			var filePath = Path.Combine("wwwroot", sla.SubmissionZip.Replace("/", Path.DirectorySeparatorChar.ToString()));
+			// Ghép đường dẫn thực tế
+			var filePath = Path.Combine(
+				Directory.GetCurrentDirectory(),
+				"wwwroot",
+				sla.SubmissionZip.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString())
+			);
 
 			if (!System.IO.File.Exists(filePath))
 				return NotFound("File không tồn tại trên server");
