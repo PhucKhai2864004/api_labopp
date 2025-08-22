@@ -13,7 +13,15 @@ public partial class FapClass
 
     public int SemesterId { get; set; }
 
-    public virtual ICollection<FapStudent> FapStudents { get; set; } = new List<FapStudent>();
+	public string? SubjectCode { get; set; }
+
+	public string? AcademicYear { get; set; }
+
+	public string? TeacherCode { get; set; }
+
+	public virtual ICollection<FapClassSlot> FapClassSlots { get; set; } = new List<FapClassSlot>();
+
+	public virtual ICollection<FapStudent> FapStudents { get; set; } = new List<FapStudent>();
 
     public virtual FapSemester Semester { get; set; } = null!;
 }

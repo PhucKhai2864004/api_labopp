@@ -11,7 +11,11 @@ public partial class FapSemester
 
     public string Name { get; set; } = null!;
 
-    public virtual ICollection<FapClass> FapClasses { get; set; } = new List<FapClass>();
+	public DateTime? StartDate { get; set; }
+
+	public DateTime? EndDate { get; set; }
+
+	public virtual ICollection<FapClass> FapClasses { get; set; } = new List<FapClass>();
 
     public virtual ICollection<FapStudent> FapStudents { get; set; } = new List<FapStudent>();
 }
