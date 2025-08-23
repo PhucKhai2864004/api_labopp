@@ -36,7 +36,6 @@ namespace Business_Logic.Interfaces.Workers.Docker
 					RedirectStandardError = true,
 					UseShellExecute = false,
 					CreateNoWindow = true,
-					WorkingDirectory = workDir
 				}
 			};
 
