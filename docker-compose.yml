@@ -11,7 +11,7 @@ services:
       - "5000:8080" # ngoài Droplet truy cập http://<ip>:5000
     environment:
       # Database & Redis
-      - ConnectionStrings__DB=Server=188.166.212.41,1433;Database=LabOopChange_v6;User Id=sa;Password=Manheno1;Encrypt=False;TrustServerCertificate=True;
+      - ConnectionStrings__DB=Server=172.17.0.1,1433;Database=LabOopChange_v6;User Id=sa;Password=Manheno1;Encrypt=False;TrustServerCertificate=True;
       - ConnectionStrings__Redis=188.166.212.41:6379,password=Manheno1
 
       # JWT
