@@ -4,10 +4,13 @@ FROM openjdk:17-slim
 # Đặt thư mục làm việc mặc định bên trong container
 WORKDIR /app
 
-# Cài thêm unzip, time, findutils để giải nén bài nộp, đo thời gian, và tìm file .java
+# Cài thêm unzip, time, findutils và Docker CLI
 RUN apt-get update && \
-    apt-get install -y unzip time findutils && \
+    apt-get install -y unzip time findutils docker.io && \
     rm -rf /var/lib/apt/lists/*
 
-# Lệnh mặc định (nếu không override khi docker run)
+# Tạo thư mục worker_temp bên trong container
+RUN mkdir -p /app/worker_temp
+
+# Lệnh mặc định
 CMD ["bash"]
