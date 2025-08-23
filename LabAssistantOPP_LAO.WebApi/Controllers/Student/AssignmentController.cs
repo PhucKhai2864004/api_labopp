@@ -275,6 +275,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
 		}
 
 		[HttpGet("download-pdf/by-assignment/{assignmentId}")]
+		[Authorize(Roles = "Student,HeadSubject")]
 		public async Task<IActionResult> DownloadPdfByAssignment(int assignmentId)
 		{
 			var doc = await _context.AssignmentDocuments
