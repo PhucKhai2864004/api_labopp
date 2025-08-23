@@ -11,21 +11,41 @@ namespace Business_Logic.Interfaces.Workers.Docker
 			string stderr = "";
 			string output = "";
 
+
 			try
 			{
-				// 1. Compile Java
+				// Detect source directory
+				var sourceDir = DetectSourceDir(workDir);
+
+				// Tìm tất cả file .java
+				var sourceFiles = Directory.GetFiles(sourceDir, "*.java", SearchOption.AllDirectories)
+										   .Select(f => Path.GetRelativePath(workDir, f).Replace("\\", "/"))
+										   .ToList();
+
+				if (!sourceFiles.Any())
+				{
+					return new ExecutionResult
+					{
+						Output = "",
+						Stderr = "No Java source files found.",
+						DurationMs = (int)(DateTime.UtcNow - startTime).TotalMilliseconds
+					};
+				}
+
+				// Tạo file chứa danh sách nguồn (javac hỗ trợ @sources.txt)
+				var sourcesFile = Path.Combine(workDir, "sources.txt");
+				await File.WriteAllLinesAsync(sourcesFile, sourceFiles);
+
+				// Đảm bảo có bin directory
+				Directory.CreateDirectory(Path.Combine(workDir, "bin"));
+
+				// 1. Compile
 				var compile = new Process
 				{
 					StartInfo = new ProcessStartInfo
 					{
 						FileName = "javac",
-						Arguments = $"-encoding UTF-8 -d bin " + string.Join(" ",
-								Directory.GetFiles(workDir, "*.java", SearchOption.AllDirectories)
-										 .Select(f => "\"" + Path.GetRelativePath(workDir, f).Replace("\\", "/") + "\"")),
-
-						// Linux
-						// Nếu Windows thì:
-						// Arguments = $"-d bin {string.Join(" ", Directory.GetFiles(Path.Combine(workDir, "src"), "*.java", SearchOption.AllDirectories))}",
+						Arguments = $"-encoding UTF-8 -d bin @sources.txt",
 						RedirectStandardError = true,
 						RedirectStandardOutput = true,
 						UseShellExecute = false,
@@ -34,7 +54,6 @@ namespace Business_Logic.Interfaces.Workers.Docker
 					}
 				};
 
-				Directory.CreateDirectory(Path.Combine(workDir, "bin"));
 				compile.Start();
 				var compileErr = await compile.StandardError.ReadToEndAsync();
 				compile.WaitForExit();
@@ -49,13 +68,13 @@ namespace Business_Logic.Interfaces.Workers.Docker
 					};
 				}
 
-				// 2. Run Java program
+				// 2. Run
 				var run = new Process
 				{
 					StartInfo = new ProcessStartInfo
 					{
 						FileName = "java",
-						Arguments = $"-cp bin {mainClass}",
+						Arguments = $"-cp bin " + mainClass,
 						RedirectStandardInput = true,
 						RedirectStandardOutput = true,
 						RedirectStandardError = true,
@@ -67,7 +86,7 @@ namespace Business_Logic.Interfaces.Workers.Docker
 
 				run.Start();
 
-				// Ghi input vào stdin
+				// Nếu có input thì ghi vào stdin
 				if (File.Exists(inputPath))
 				{
 					var input = await File.ReadAllTextAsync(inputPath);
@@ -80,7 +99,7 @@ namespace Business_Logic.Interfaces.Workers.Docker
 
 				run.WaitForExit();
 
-				// Lưu output ra file
+				// Ghi output ra file
 				await File.WriteAllTextAsync(outputPath, output);
 			}
 			catch (Exception ex)
@@ -95,7 +114,17 @@ namespace Business_Logic.Interfaces.Workers.Docker
 				DurationMs = (int)(DateTime.UtcNow - startTime).TotalMilliseconds
 			};
 		}
+
+		private string DetectSourceDir(string workDir)
+		{
+			var srcPath = Path.Combine(workDir, "src");
+			if (Directory.Exists(srcPath))
+				return srcPath;
+
+			return workDir;
+		}
 	}
+
 	public class ExecutionResult
 	{
 		public string Output { get; set; }
