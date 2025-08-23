@@ -76,28 +76,28 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
 		}
 
 		// GET: api/teacher/class/status/{classId}
-		[HttpGet("status/{classId}")]
-		public async Task<IActionResult> GetClassStatus(int classId)
+		[HttpGet("status/all")]
+		public async Task<IActionResult> GetAllClassesStatus()
 		{
 			var now = DateTime.UtcNow;
 
-			// Tìm slot hiện tại theo thời gian
-			var slot = await _context.ClassSlots
-				.Where(s => s.ClassId == classId && s.StartTime <= now && s.EndTime >= now)
-				.FirstOrDefaultAsync();
+			var activeSlots = await _context.ClassSlots
+				.Where(s => s.StartTime <= now && s.EndTime >= now)
+				.Select(s => new
+				{
+					classId = s.ClassId,
+					slotId = s.Id,
+					slotNo = s.SlotNo,
+					isEnabled = s.IsEnabled,
+					startTime = s.StartTime,
+					endTime = s.EndTime
+				})
+				.ToListAsync();
 
-			if (slot == null)
-				return NotFound("Không có slot nào đang diễn ra cho class này.");
+			if (!activeSlots.Any())
+				return NotFound("Không có slot nào đang diễn ra cho bất kỳ class nào.");
 
-			return Ok(new
-			{
-				classId = classId,
-				slotId = slot.Id,
-				slotNo = slot.SlotNo,
-				isEnabled = slot.IsEnabled, // ✅ đây là trạng thái mở/tắt
-				startTime = slot.StartTime,
-				endTime = slot.EndTime
-			});
+			return Ok(activeSlots);
 		}
 	}
 }
