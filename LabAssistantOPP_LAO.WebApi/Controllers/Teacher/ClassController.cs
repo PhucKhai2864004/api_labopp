@@ -1,4 +1,5 @@
-﻿using LabAssistantOPP_LAO.Models.Data;
+﻿using LabAssistantOPP_LAO.Models.Common;
+using LabAssistantOPP_LAO.Models.Data;
 using LabAssistantOPP_LAO.Models.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -94,9 +95,12 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
 				.ToListAsync();
 
 			if (!activeSlots.Any())
-				return NotFound("Không có slot nào đang diễn ra cho bất kỳ class nào.");
+			{
+				return NotFound(ApiResponse<object>.ErrorResponse(
+					"Không có slot nào đang diễn ra cho bất kỳ class nào."));
+			}
 
-			return Ok(activeSlots);
+			return Ok(ApiResponse<object>.SuccessResponse(activeSlots, "Danh sách slot đang diễn ra"));
 		}
 	}
 }
