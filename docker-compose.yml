@@ -40,3 +40,4 @@ services:
   volumes:
     - /var/run/docker.sock:/var/run/docker.sock   # mount Docker của host
     - /app/worker_temp:/app/worker_temp           # tạo thư mục workDir chung
+    command: tail -f /dev/null
