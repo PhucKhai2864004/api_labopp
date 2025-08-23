@@ -5,49 +5,87 @@ namespace Business_Logic.Interfaces.Workers.Docker
 {
 	public class DockerRunner
 	{
-		private readonly IConfiguration _configuration;
-
-		public DockerRunner(IConfiguration configuration)
-		{
-			_configuration = configuration;
-		}
-
 		public async Task<ExecutionResult> ExecuteAsync(string workDir, string mainClass, string inputPath, string outputPath)
 		{
 			var startTime = DateTime.UtcNow;
-
-			var ioDir = Path.GetDirectoryName(inputPath)!;
-			var dockerIoDir = ioDir.Replace("\\", "/").ToLowerInvariant();
-
-			workDir = Path.GetFullPath(workDir);
-			var dockerWorkDir = workDir.Replace("\\", "/").ToLowerInvariant();
-
-			var uid = _configuration["Docker:UID"] ?? "1000";
-			var gid = _configuration["Docker:GID"] ?? "1000";
-
-			var process = new Process
-			{
-				StartInfo = new ProcessStartInfo
-				{
-					FileName = "docker",
-					Arguments = $"run --rm --network none -v \"{dockerWorkDir}:/app\" -v \"{dockerIoDir}:/io\" -w /app my-openjdk17 " +
-									$"sh -c \"mkdir -p bin && javac -d bin $(find src -name \"*.java\") && java -cp bin {mainClass} < /io/input.txt > /io/output.txt\"",
-					RedirectStandardOutput = true,
-					RedirectStandardError = true,
-					UseShellExecute = false,
-					CreateNoWindow = true,
-				}
-			};
-
-			process.Start();
-
-			var stderr = await process.StandardError.ReadToEndAsync();
-			process.WaitForExit();
-
+			string stderr = "";
 			string output = "";
-			if (File.Exists(outputPath))
+
+			try
 			{
-				output = await File.ReadAllTextAsync(outputPath);
+				// 1. Compile Java
+				var compile = new Process
+				{
+					StartInfo = new ProcessStartInfo
+					{
+						FileName = "javac",
+						Arguments = $"-encoding UTF-8 -d bin " + string.Join(" ",
+								Directory.GetFiles(workDir, "*.java", SearchOption.AllDirectories)
+										 .Select(f => "\"" + Path.GetRelativePath(workDir, f).Replace("\\", "/") + "\"")),
+
+						// Linux
+						// Nếu Windows thì:
+						// Arguments = $"-d bin {string.Join(" ", Directory.GetFiles(Path.Combine(workDir, "src"), "*.java", SearchOption.AllDirectories))}",
+						RedirectStandardError = true,
+						RedirectStandardOutput = true,
+						UseShellExecute = false,
+						CreateNoWindow = true,
+						WorkingDirectory = workDir
+					}
+				};
+
+				Directory.CreateDirectory(Path.Combine(workDir, "bin"));
+				compile.Start();
+				var compileErr = await compile.StandardError.ReadToEndAsync();
+				compile.WaitForExit();
+
+				if (compile.ExitCode != 0)
+				{
+					return new ExecutionResult
+					{
+						Output = "",
+						Stderr = compileErr,
+						DurationMs = (int)(DateTime.UtcNow - startTime).TotalMilliseconds
+					};
+				}
+
+				// 2. Run Java program
+				var run = new Process
+				{
+					StartInfo = new ProcessStartInfo
+					{
+						FileName = "java",
+						Arguments = $"-cp bin {mainClass}",
+						RedirectStandardInput = true,
+						RedirectStandardOutput = true,
+						RedirectStandardError = true,
+						UseShellExecute = false,
+						CreateNoWindow = true,
+						WorkingDirectory = workDir
+					}
+				};
+
+				run.Start();
+
+				// Ghi input vào stdin
+				if (File.Exists(inputPath))
+				{
+					var input = await File.ReadAllTextAsync(inputPath);
+					await run.StandardInput.WriteAsync(input);
+					run.StandardInput.Close();
+				}
+
+				output = await run.StandardOutput.ReadToEndAsync();
+				stderr = await run.StandardError.ReadToEndAsync();
+
+				run.WaitForExit();
+
+				// Lưu output ra file
+				await File.WriteAllTextAsync(outputPath, output);
+			}
+			catch (Exception ex)
+			{
+				stderr = ex.ToString();
 			}
 
 			return new ExecutionResult
