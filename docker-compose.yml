@@ -39,5 +39,5 @@ services:
     privileged: true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /app/worker_temp:/app/worker_temp
+      - ./LabAssistantOPP_LAO.Services/Interfaces/Grading/grading-system/java-sandbox/worker_temp:/app/worker_temp
     command: tail -f /dev/null
