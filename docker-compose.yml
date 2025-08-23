@@ -1,41 +1,38 @@
-version: '3.8'
+version: '3.9'
 
 services:
-  labapi:
+  webapi:
     build:
       context: .
-      dockerfile: LabAssistantOPP_LAO.WebApi/Dockerfile
+      dockerfile: Dockerfile
+    container_name: laboop_api
+    restart: always
     ports:
-      - "5111:80"
-    depends_on:
-      - labdb
+      - "5000:8080" # ngoài Droplet truy cập http://<ip>:5000
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:80
-      - ConnectionStrings__DB=Server=labdb;Database=LabOpp;User=sa;Password=DoanSU25.2025;Encrypt=False;TrustServerCertificate=True
+      # Database & Redis
+      - ConnectionStrings__DB=Server=188.166.212.41,1433;Database=LabOopChange_v6;User Id=sa;Password=Manheno1;Encrypt=False;TrustServerCertificate=True;
+      - ConnectionStrings__Redis=188.166.212.41:6379,password=Manheno1
 
-  labdb:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: lab_sql
-    environment:
-      SA_PASSWORD: "DoanSU25.2025"
-      ACCEPT_EULA: "Y"
-    ports:
-      - "1433:1433"
-    volumes:
-      - lab_sql_data:/var/opt/mssql
+      # JWT
+      - JwtSettings__Secret=THIS_IS_SUPER_SECRET_KEY_1234567890
+      - JwtSettings__Issuer=LabOOPSystem
+      - JwtSettings__Audience=LabOOPUsers
+      - JwtSettings__ExpireMinutes=60
 
-  db-init:
-    image: mcr.microsoft.com/mssql-tools
+      # Google OAuth
+      - GoogleAuth__ClientId=41594915925-n7hce257v5uk1fcepfa74qv91jeo15ia.apps.googleusercontent.com
+
+      # Docker UID/GID
+      - Docker__UID=1000
+      - Docker__GID=1000
+
     depends_on:
-      - labdb
-    volumes:
-      - ./init_labopp.sql:/init_labopp.sql
-    entrypoint: >
-      /bin/bash -c "
-        sleep 20 &&
-        /opt/mssql-tools/bin/sqlcmd -S labdb -U sa -P DoanSU25.2025 -d master -i /init_labopp.sql
-      "
+      - java-sandbox
 
-volumes:
-  lab_sql_data:
+  java-sandbox:
+    build:
+      context: ./LabAssistantOPP_LAO.Services/Interfaces/Grading/grading-system/java-sandbox
+      dockerfile: Dockerfile
+    container_name: java_sandbox
+    restart: always
