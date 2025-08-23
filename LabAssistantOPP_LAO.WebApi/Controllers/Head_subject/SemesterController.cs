@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 {
-    [Authorize(Roles = "Head Subject")]
+    [Authorize(Roles = "Head Subject,Teacher")]
     [ApiController]
     [Route("api/head_subject/semester")]
     public class SemesterController : ControllerBase
