@@ -658,7 +658,10 @@ public partial class LabOopChangeV6Context : DbContext
                 .HasDefaultValueSql("(sysdatetime())")
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
-            entity.Property(e => e.ExpectedOutput).HasColumnName("expected_output");
+			entity.Property(e => e.Description)
+				.HasMaxLength(500)
+				.HasColumnName("description");
+			entity.Property(e => e.ExpectedOutput).HasColumnName("expected_output");
             entity.Property(e => e.Input).HasColumnName("input");
             entity.Property(e => e.Loc).HasColumnName("loc");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");

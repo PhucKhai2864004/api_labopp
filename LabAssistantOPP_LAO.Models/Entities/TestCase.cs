@@ -22,8 +22,9 @@ public partial class TestCase
     public int? UpdatedBy { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
+	public string? Description { get; set; }
 
-    public virtual LabAssignment Assignment { get; set; } = null!;
+	public virtual LabAssignment Assignment { get; set; } = null!;
 
     public virtual User? CreatedByNavigation { get; set; }
 
