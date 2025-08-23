@@ -14,7 +14,8 @@ RUN apt-get update && \
 
 # Tạo thư mục cần thiết
 RUN mkdir -p /app/worker_temp /app/submissions
-
+# Đặt quyền (tùy chọn, để tránh lỗi permission khi copy file host vào container)
+RUN chmod -R 777 /app/worker_temp /app/submissions
 # Copy code worker nếu cần
 COPY . .
 
