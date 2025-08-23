@@ -23,7 +23,7 @@ services:
       # Google OAuth
       - GoogleAuth__ClientId=41594915925-n7hce257v5uk1fcepfa74qv91jeo15ia.apps.googleusercontent.com
 
-      # Docker UID/GID
+      # Docker UID/GID (cho sandbox)
       - Docker__UID=1000
       - Docker__GID=1000
 
@@ -36,9 +36,8 @@ services:
       dockerfile: Dockerfile
     container_name: java_sandbox
     restart: always
-    privileged: true
+    privileged: true   # cần cho docker-in-docker
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./worker_temp:/app/worker_temp
       - ./submissions:/app/submissions
-    command: tail -f /dev/null
