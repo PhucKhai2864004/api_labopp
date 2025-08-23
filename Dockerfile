@@ -4,6 +4,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
+# Cài docker-cli để gọi "docker run" bên trong container
+RUN apt-get update && apt-get install -y docker.io && rm -rf /var/lib/apt/lists/*
 # Copy solution và project files
 COPY LabAssistantOPP_LAO.WebApi/ LabAssistantOPP_LAO.WebApi/
 COPY LabAssistantOPP_LAO.Services/ LabAssistantOPP_LAO.Services/
