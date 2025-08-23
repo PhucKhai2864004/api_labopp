@@ -36,3 +36,7 @@ services:
       dockerfile: Dockerfile
     container_name: java_sandbox
     restart: always
+    privileged: true          # cho phép container dùng Docker
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock   # mount Docker của host
+    - /app/worker_temp:/app/worker_temp           # tạo thư mục workDir chung
