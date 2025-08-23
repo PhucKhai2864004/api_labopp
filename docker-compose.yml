@@ -27,6 +27,11 @@ services:
       - Docker__UID=1000
       - Docker__GID=1000
 
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   
+
+    user: root    
+
     depends_on:
       - java-sandbox
 
@@ -36,7 +41,7 @@ services:
       dockerfile: Dockerfile
     container_name: java_sandbox
     restart: always
-    privileged: true   # cần cho docker-in-docker
+    privileged: true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./worker_temp:/app/worker_temp
