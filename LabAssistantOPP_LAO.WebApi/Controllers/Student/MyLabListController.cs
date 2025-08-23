@@ -32,6 +32,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
 				{
 					sla.Id,
 					sla.AssignmentId,
+					sla.SemesterId,
 					sla.Status,
 					sla.SubmittedAt
 				}).ToListAsync();
