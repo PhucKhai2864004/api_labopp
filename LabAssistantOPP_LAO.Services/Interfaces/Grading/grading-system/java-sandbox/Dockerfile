@@ -11,6 +11,6 @@ RUN apt-get update && \
 
 # Tạo thư mục worker_temp bên trong container
 RUN mkdir -p /app/worker_temp
-
+COPY . .
 # Lệnh mặc định
 CMD ["bash"]
