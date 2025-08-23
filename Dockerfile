@@ -26,13 +26,14 @@ RUN dotnet publish LabAssistantOPP_LAO.WebApi/LabAssistantOPP_LAO.WebApi.csproj 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 
-
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends docker.io && \
+    apt-get install -y --no-install-recommends openjdk-17-jdk unzip findutils time && \
     rm -rf /var/lib/apt/lists/*
 
+# Copy app từ build stage
 COPY --from=build /app/publish .
 
+# Env .NET
 ENV ASPNETCORE_URLS=http://+:8080 \
     DOTNET_RUNNING_IN_CONTAINER=true \
     DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
