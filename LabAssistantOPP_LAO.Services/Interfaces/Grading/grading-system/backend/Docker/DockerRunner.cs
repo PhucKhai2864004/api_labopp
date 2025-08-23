@@ -31,7 +31,7 @@ namespace Business_Logic.Interfaces.Workers.Docker
 				{
 					FileName = "docker",
 					Arguments = $"run --rm --network none -v \"{dockerWorkDir}:/app\" -v \"{dockerIoDir}:/io\" -w /app my-openjdk17 " +
-									$"sh -c \"mkdir -p bin && javac -d bin $(find . -name \"*.java\") && java -cp bin {mainClass} < /io/input.txt > /io/output.txt\"",
+									$"sh -c \"mkdir -p bin && javac -d bin $(find src -name \"*.java\") && java -cp bin {mainClass} < /io/input.txt > /io/output.txt\"",
 					RedirectStandardOutput = true,
 					RedirectStandardError = true,
 					UseShellExecute = false,
