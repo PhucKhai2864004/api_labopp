@@ -75,7 +75,6 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
 			return Ok("Class stopped successfully.");
 		}
 
-		// GET: api/teacher/class/status/{classId}
 		[HttpGet("status/all")]
 		public async Task<IActionResult> GetAllClassesStatus()
 		{
