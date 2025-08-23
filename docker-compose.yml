@@ -8,7 +8,7 @@ services:
     container_name: laboop_api
     restart: always
     ports:
-      - "5000:8080" # ngoài Droplet truy cập http://<ip>:5000
+      - "5000:8080"
     environment:
       # Database & Redis
       - ConnectionStrings__DB=Server=172.17.0.1,1433;Database=LabOopChange_v6;User Id=sa;Password=Manheno1;Encrypt=False;TrustServerCertificate=True;
@@ -36,8 +36,8 @@ services:
       dockerfile: Dockerfile
     container_name: java_sandbox
     restart: always
-    privileged: true          # cho phép container dùng Docker
-  volumes:
-    - /var/run/docker.sock:/var/run/docker.sock   # mount Docker của host
-    - /app/worker_temp:/app/worker_temp           # tạo thư mục workDir chung
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /app/worker_temp:/app/worker_temp
     command: tail -f /dev/null
