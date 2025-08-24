@@ -41,16 +41,20 @@ builder.Services.AddControllers()
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend", policy =>
-    {
-        policy
-            .SetIsOriginAllowed(origin =>
-                new Uri(origin).Host.EndsWith("vercel.app") ||
-                origin == "http://localhost:5173" || origin == "https://drive.wukongfood.site")
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials(); // nếu bạn dùng cookie hoặc token
-    });
+	options.AddPolicy("AllowFrontend", policy =>
+	{
+		policy
+			.SetIsOriginAllowed(origin =>
+			{
+				var uri = new Uri(origin);
+				return uri.Host.EndsWith("vercel.app") ||
+					   origin == "http://localhost:5173" ||
+					   origin == "https://drive.wukongfood.site"; // ✅ thêm domain này
+			})
+			.AllowAnyHeader()
+			.AllowAnyMethod()
+			.AllowCredentials();
+	});
 });
 
 builder.Services.AddScoped<ISubmissionService, SubmissionService>();
