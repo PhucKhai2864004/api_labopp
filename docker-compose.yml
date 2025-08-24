@@ -56,7 +56,6 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
-    healthcheck: null
 
   ollama:
     image: ollama/ollama:latest
@@ -67,7 +66,6 @@ services:
       - OLLAMA_HOST=0.0.0.0
     volumes:
       - ollama_data:/root/.ollama
-    healthcheck: null
 
   rag-service:
     build:
