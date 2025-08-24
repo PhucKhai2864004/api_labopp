@@ -174,15 +174,20 @@ namespace Business_Logic.Interfaces.Workers.Grading
 		[CapSubscribe("submission.created")]
 		public async Task EnqueueJob(SubmissionJob job)
 		{
-			if (!await IsRunningAsync(job.TeacherId))
+			var running = await IsRunningAsync(job.TeacherId);
+			_logger.LogInformation("📥 Received CAP message for Submission {SubmissionId}, PoolRunning={Running}",
+				job.SubmissionId, running);
+
+			if (!running)
 			{
 				_logger.LogWarning("⚠️ Pool for teacher {TeacherId} not running — ignored job {SubmissionId}",
 					job.TeacherId, job.SubmissionId);
 				return;
 			}
 
-			_logger.LogInformation("[Queue] Enqueued job {SubmissionId}", job.SubmissionId);
 			_jobQueue.Add(job);
+			_logger.LogInformation("🟢 Job {SubmissionId} enqueued successfully (Teacher {TeacherId})",
+				job.SubmissionId, job.TeacherId);
 		}
 
 		private async Task ProcessQueue(string workerName, int teacherId, CancellationToken token)
