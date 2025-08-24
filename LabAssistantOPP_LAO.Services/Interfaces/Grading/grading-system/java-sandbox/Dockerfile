@@ -1,23 +1,13 @@
-# Base image nhẹ có JDK 17
+# Sử dụng base image nhẹ chứa JDK 17
 FROM openjdk:17-slim
 
+# Đặt thư mục làm việc mặc định bên trong container
 WORKDIR /app
 
-# Cài đặt các công cụ cần thiết + Docker CLI
+# Cài thêm unzip, time, findutils để giải nén bài nộp, đo thời gian, và tìm file .java
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    unzip \
-    time \
-    findutils \
-    docker.io \
-    && rm -rf /var/lib/apt/lists/*
+    apt-get install -y unzip time findutils && \
+    rm -rf /var/lib/apt/lists/*
 
-# Tạo thư mục cần thiết
-RUN mkdir -p /app/worker_temp /app/submissions
-# Đặt quyền (tùy chọn, để tránh lỗi permission khi copy file host vào container)
-RUN chmod -R 777 /app/worker_temp /app/submissions
-# Copy code worker nếu cần
-COPY . .
-
-# Container mặc định chạy ở chế độ idle (để chờ job)
-CMD ["tail", "-f", "/dev/null"]
+# Lệnh mặc định (nếu không override khi docker run)
+CMD ["bash"]

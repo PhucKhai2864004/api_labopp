@@ -15,5 +15,6 @@ public partial class VectorIndex
 
     public DateTime CreatedAt { get; set; }
 
-    public virtual ICollection<AssignmentIngest> AssignmentIngests { get; set; } = new List<AssignmentIngest>();
+    // Comment out navigation properties to prevent shadow properties
+    // public virtual ICollection<AssignmentIngest> AssignmentIngests { get; set; } = new List<AssignmentIngest>();
 }

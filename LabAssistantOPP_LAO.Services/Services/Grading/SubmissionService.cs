@@ -90,12 +90,6 @@ namespace Business_Logic.Services.Grading
 
 			if (existing != null)
 			{
-				// Nếu không còn là Draft thì không cho nộp nữa
-				if (existing.Status != "Draft")
-				{
-					throw new InvalidOperationException("Bài này đã được nộp/đã chấm, không thể nộp lại.");
-				}
-
 				// Ghi đè Draft cũ
 				existing.SubmissionZip = submissionZipRelative;
 				existing.SubmittedAt = DateTime.UtcNow;

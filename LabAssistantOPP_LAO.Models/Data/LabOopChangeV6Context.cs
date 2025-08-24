@@ -17,13 +17,13 @@ public partial class LabOopChangeV6Context : DbContext
     {
     }
 
-    public virtual DbSet<AssignmentApproval> AssignmentApprovals { get; set; }
+            public virtual DbSet<AssignmentApproval> AssignmentApprovals { get; set; }
 
-    public virtual DbSet<AssignmentDocument> AssignmentDocuments { get; set; }
+        public virtual DbSet<AssignmentDocument> AssignmentDocuments { get; set; }
 
-    public virtual DbSet<AssignmentIngest> AssignmentIngests { get; set; }
+        public virtual DbSet<AssignmentIngest> AssignmentIngests { get; set; }
 
-    public virtual DbSet<Class> Classes { get; set; }
+        public virtual DbSet<Class> Classes { get; set; }
 
     public virtual DbSet<ClassHasLabAssignment> ClassHasLabAssignments { get; set; }
 
@@ -57,9 +57,9 @@ public partial class LabOopChangeV6Context : DbContext
 
     public virtual DbSet<TestCaseResult> TestCaseResults { get; set; }
 
-    public virtual DbSet<User> Users { get; set; }
+            public virtual DbSet<User> Users { get; set; }
 
-    public virtual DbSet<VectorIndex> VectorIndices { get; set; }
+        public virtual DbSet<VectorIndex> VectorIndices { get; set; }
 
 	protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 	{
@@ -106,36 +106,69 @@ public partial class LabOopChangeV6Context : DbContext
                 .HasConstraintName("FK_AA_Assign");
         });
 
+        //modelBuilder.Entity<AssignmentDocument>(entity =>
+        //{
+        //    entity.HasKey(e => e.Id).HasName("PK__Assignme__3213E83FDCA47865");
+
+        //    entity.ToTable("Assignment_Document");
+
+        //    entity.Property(e => e.Id).HasColumnName("id");
+        //    entity.Property(e => e.AssignmentId).HasColumnName("assignment_id");
+        //    entity.Property(e => e.FileName)
+        //        .HasMaxLength(255)
+        //        .HasColumnName("file_name");
+        //    entity.Property(e => e.FilePath)
+        //        .HasMaxLength(500)
+        //        .HasColumnName("file_path");
+        //    entity.Property(e => e.MimeType)
+        //        .HasMaxLength(100)
+        //        .HasColumnName("mime_type");
+        //    entity.Property(e => e.UploadedAt)
+        //        .HasDefaultValueSql("(sysdatetime())")
+        //        .HasColumnName("uploaded_at");
+        //    entity.Property(e => e.UploadedBy).HasColumnName("uploaded_by");
+
+        //    entity.HasOne(d => d.Assignment).WithMany()
+        //        .HasForeignKey(d => d.AssignmentId)
+        //        .OnDelete(DeleteBehavior.Cascade)
+        //        .HasConstraintName("FK_AD_Assign");
+
+        //    entity.HasOne(d => d.UploadedByNavigation).WithMany()
+        //        .HasForeignKey(d => d.UploadedBy)
+        //        .HasConstraintName("FK_AD_User");
+        //});
         modelBuilder.Entity<AssignmentDocument>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Assignme__3213E83FDCA47865");
-
             entity.ToTable("Assignment_Document");
 
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.AssignmentId).HasColumnName("assignment_id");
             entity.Property(e => e.FileName)
-                .HasMaxLength(255)
-                .HasColumnName("file_name");
+                  .HasMaxLength(255)
+                  .HasColumnName("file_name");
             entity.Property(e => e.FilePath)
-                .HasMaxLength(500)
-                .HasColumnName("file_path");
+                  .HasMaxLength(500)
+                  .HasColumnName("file_path");
             entity.Property(e => e.MimeType)
-                .HasMaxLength(100)
-                .HasColumnName("mime_type");
+                  .HasMaxLength(100)
+                  .HasColumnName("mime_type");
             entity.Property(e => e.UploadedAt)
-                .HasDefaultValueSql("(sysdatetime())")
-                .HasColumnName("uploaded_at");
+                  .HasDefaultValueSql("(sysdatetime())")
+                  .HasColumnName("uploaded_at");
             entity.Property(e => e.UploadedBy).HasColumnName("uploaded_by");
 
-            entity.HasOne(d => d.Assignment).WithMany(p => p.AssignmentDocuments)
-                .HasForeignKey(d => d.AssignmentId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_AD_Assign");
+            // ✅ Sửa: Sử dụng HasOne<EntityType>() thay vì navigation properties
+            entity.HasOne<LabAssignment>()
+                 .WithMany()
+                 .HasForeignKey(d => d.AssignmentId)
+                 .OnDelete(DeleteBehavior.Cascade)
+                 .HasConstraintName("FK_AD_Assign");
 
-            entity.HasOne(d => d.UploadedByNavigation).WithMany(p => p.AssignmentDocuments)
-                .HasForeignKey(d => d.UploadedBy)
-                .HasConstraintName("FK_AD_User");
+            entity.HasOne<User>()
+                 .WithMany()
+                 .HasForeignKey(d => d.UploadedBy)
+                 .HasConstraintName("FK_AD_User");
         });
 
         modelBuilder.Entity<AssignmentIngest>(entity =>
@@ -148,35 +181,61 @@ public partial class LabOopChangeV6Context : DbContext
 
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.AssignmentId).HasColumnName("assignment_id");
-            entity.Property(e => e.ChunkOverlap).HasColumnName("chunk_overlap");
-            entity.Property(e => e.ChunkSize).HasColumnName("chunk_size");
-            entity.Property(e => e.ChunksIngested).HasColumnName("chunks_ingested");
             entity.Property(e => e.DocumentId).HasColumnName("document_id");
+            entity.Property(e => e.VectorIndexId).HasColumnName("vector_index_id");
+            entity.Property(e => e.ChunkSize).HasColumnName("chunk_size");
+            entity.Property(e => e.ChunkOverlap).HasColumnName("chunk_overlap");
+            entity.Property(e => e.ChunksIngested).HasColumnName("chunks_ingested");
             entity.Property(e => e.LastChunkedAt).HasColumnName("last_chunked_at");
-            entity.Property(e => e.Message)
-                .HasMaxLength(1000)
-                .HasColumnName("message");
             entity.Property(e => e.Status)
                 .HasMaxLength(20)
                 .IsUnicode(false)
                 .HasDefaultValue("NotProcessed")
                 .HasColumnName("status");
-            entity.Property(e => e.VectorIndexId).HasColumnName("vector_index_id");
+            entity.Property(e => e.Message)
+                .HasMaxLength(1000)
+                .HasColumnName("message");
 
-            entity.HasOne(d => d.Assignment).WithMany(p => p.AssignmentIngests)
+            // ✅ Sửa: Sử dụng HasOne<EntityType>() thay vì navigation properties
+            entity.HasOne<LabAssignment>()
+                .WithMany()
                 .HasForeignKey(d => d.AssignmentId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
+                .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_AI_Assign");
 
-            entity.HasOne(d => d.Document).WithMany(p => p.AssignmentIngests)
+            entity.HasOne<AssignmentDocument>()
+                .WithMany()
                 .HasForeignKey(d => d.DocumentId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
+                .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_AI_Doc");
 
-            entity.HasOne(d => d.VectorIndex).WithMany(p => p.AssignmentIngests)
+            entity.HasOne<VectorIndex>()
+                .WithMany()
                 .HasForeignKey(d => d.VectorIndexId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
+                .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_AI_VIndex");
+        });
+
+        modelBuilder.Entity<VectorIndex>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Vector_I__3213E83FE2B9D15B");
+
+            entity.ToTable("Vector_Index");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("(sysdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.ExternalId)
+                .HasMaxLength(255)
+                .HasColumnName("external_id");
+            entity.Property(e => e.IndexName)
+                .HasMaxLength(255)
+                .HasColumnName("index_name");
+            entity.Property(e => e.Provider)
+                .HasMaxLength(50)
+                .IsUnicode(false)
+                .HasColumnName("provider");
         });
 
         modelBuilder.Entity<Class>(entity =>
@@ -658,10 +717,7 @@ public partial class LabOopChangeV6Context : DbContext
                 .HasDefaultValueSql("(sysdatetime())")
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
-			entity.Property(e => e.Description)
-				.HasMaxLength(500)
-				.HasColumnName("description");
-			entity.Property(e => e.ExpectedOutput).HasColumnName("expected_output");
+            entity.Property(e => e.ExpectedOutput).HasColumnName("expected_output");
             entity.Property(e => e.Input).HasColumnName("input");
             entity.Property(e => e.Loc).HasColumnName("loc");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
@@ -743,27 +799,7 @@ public partial class LabOopChangeV6Context : DbContext
                 .HasConstraintName("FK_User_Role");
         });
 
-        modelBuilder.Entity<VectorIndex>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__Vector_I__3213E83FE2B9D15B");
 
-            entity.ToTable("Vector_Index");
-
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(sysdatetime())")
-                .HasColumnName("created_at");
-            entity.Property(e => e.ExternalId)
-                .HasMaxLength(255)
-                .HasColumnName("external_id");
-            entity.Property(e => e.IndexName)
-                .HasMaxLength(255)
-                .HasColumnName("index_name");
-            entity.Property(e => e.Provider)
-                .HasMaxLength(50)
-                .IsUnicode(false)
-                .HasColumnName("provider");
-        });
 
         OnModelCreatingPartial(modelBuilder);
     }

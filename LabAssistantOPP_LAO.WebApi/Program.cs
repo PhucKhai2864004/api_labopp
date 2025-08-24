@@ -19,11 +19,14 @@ using Business_Logic.Interfaces.Workers.Docker;
 using StackExchange.Redis;
 using Business_Logic.Interfaces.Grading.grading_system.backend.Workers;
 using Business_Logic.Services.FapSync;
+using Business_Logic.Interfaces.Grading;
+using Business_Logic.Services.AI;
+using LabAssistantOPP_LAO.Models.Entities; 
+
 
 var builder = WebApplication.CreateBuilder(args);
 var redisConnection = builder.Configuration.GetConnectionString("Redis");
 // Add services to the container.
-
 
 
 
@@ -41,20 +44,16 @@ builder.Services.AddControllers()
 
 builder.Services.AddCors(options =>
 {
-	options.AddPolicy("AllowFrontend", policy =>
-	{
-		policy
-			.SetIsOriginAllowed(origin =>
-			{
-				var uri = new Uri(origin);
-				return uri.Host.EndsWith("vercel.app") ||
-					   origin == "http://localhost:5173" ||
-					   origin == "https://drive.wukongfood.site"; // ✅ thêm domain này
-			})
-			.AllowAnyHeader()
-			.AllowAnyMethod()
-			.AllowCredentials();
-	});
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy
+            .SetIsOriginAllowed(origin =>
+                new Uri(origin).Host.EndsWith("vercel.app") ||
+                origin == "http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials(); // nếu bạn dùng cookie hoặc token
+    });
 });
 
 builder.Services.AddScoped<ISubmissionService, SubmissionService>();
@@ -130,6 +129,7 @@ builder.Services.AddScoped<ITeacherLocService, TeacherLocService>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<FapSyncService>();
+builder.Services.AddHttpClient<IAIService, AIService>();
 
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -187,6 +187,22 @@ builder.Services.AddSingleton<IUserIdProvider, CustomUserIdProvider>();
 
 var app = builder.Build();
 
+//using (var scope = app.Services.CreateScope())
+//{
+//    var db = scope.ServiceProvider.GetRequiredService<LabOopChangeV6Context>();
+//    try
+//    {
+//        Console.WriteLine("🔍 Checking SQL Server connection...");
+//        db.Database.OpenConnection();
+//        Console.WriteLine("✅ Connected to SQL Server successfully!");
+//    }
+//    catch (Exception ex)
+//    {
+//        Console.WriteLine("🔥 SQL Connection Error:");
+//        Console.WriteLine(ex.ToString());
+//    }
+
+//}
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<LabOopChangeV6Context>();
@@ -201,7 +217,28 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine("🔥 SQL Connection Error:");
         Console.WriteLine(ex.ToString());
     }
+    finally
+    {
+        try { db.Database.CloseConnection(); } catch { /* ignore */ }
+    }
 
+    /// >>> EF runtime dump cho AssignmentDocument (để kiểm tra còn shadow FK không)
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    var et = db.Model.FindEntityType(typeof(AssignmentDocument));
+    if (et == null)
+    {
+        logger.LogWarning("Không tìm thấy entity AssignmentDocument trong EF model.");
+    }
+    else
+    {
+        var props = string.Join(", ", et.GetProperties().Select(p => p.Name));
+        var fks = string.Join(" | ", et.GetForeignKeys()
+                                       .Select(fk => string.Join(",", fk.Properties.Select(p => p.Name))));
+        logger.LogInformation("EF Runtime — AssignmentDocument props: {Props}", props);
+        logger.LogInformation("EF Runtime — AssignmentDocument FKs: {FKs}", fks);
+        // Kỳ vọng KHÔNG thấy 'LabAssignmentId' hoặc 'UserId' trong props/FKs
+    }
+    /// <<<
 }
 
 // Configure the HTTP request pipeline.

@@ -35,9 +35,9 @@ public partial class LabAssignment
 
     public virtual ICollection<AssignmentApproval> AssignmentApprovals { get; set; } = new List<AssignmentApproval>();
 
-    public virtual ICollection<AssignmentDocument> AssignmentDocuments { get; set; } = new List<AssignmentDocument>();
-
-    public virtual ICollection<AssignmentIngest> AssignmentIngests { get; set; } = new List<AssignmentIngest>();
+    // Comment out navigation properties to prevent shadow properties
+    // public virtual ICollection<AssignmentDocument> AssignmentDocuments { get; set; } = new List<AssignmentDocument>();
+    // public virtual ICollection<AssignmentIngest> AssignmentIngests { get; set; } = new List<AssignmentIngest>();
 
     public virtual ICollection<ClassHasLabAssignment> ClassHasLabAssignments { get; set; } = new List<ClassHasLabAssignment>();
 

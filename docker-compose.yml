@@ -1,48 +1,89 @@
-version: '3.9'
+version: '3.8'
 
 services:
-  webapi:
+  labapi:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: laboop_api
-    restart: always
+      dockerfile: LabAssistantOPP_LAO.WebApi/Dockerfile
     ports:
-      - "5000:8080"
-    environment:
-      # Database & Redis
-      - ConnectionStrings__DB=Server=172.17.0.1,1433;Database=LabOopChange_v6;User Id=sa;Password=Manheno1;Encrypt=False;TrustServerCertificate=True;
-      - ConnectionStrings__Redis=188.166.212.41:6379,password=Manheno1
-
-      # JWT
-      - JwtSettings__Secret=THIS_IS_SUPER_SECRET_KEY_1234567890
-      - JwtSettings__Issuer=LabOOPSystem
-      - JwtSettings__Audience=LabOOPUsers
-      - JwtSettings__ExpireMinutes=60
-
-      # Google OAuth
-      - GoogleAuth__ClientId=41594915925-n7hce257v5uk1fcepfa74qv91jeo15ia.apps.googleusercontent.com
-
-      # Docker UID/GID (cho sandbox)
-      - Docker__UID=1000
-      - Docker__GID=1000
-
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock   
-
-    user: root    
-
+      - "5111:80"
     depends_on:
-      - java-sandbox
+      - labdb
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DB=Server=labdb;Database=LabOpp;User=sa;Password=DoanSU25.2025;Encrypt=False;TrustServerCertificate=True
 
-  java-sandbox:
-    build:
-      context: ./LabAssistantOPP_LAO.Services/Interfaces/Grading/grading-system/java-sandbox
-      dockerfile: Dockerfile
-    container_name: java_sandbox
-    restart: always
-    privileged: true
+  labdb:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: lab_sql
+    environment:
+      SA_PASSWORD: "DoanSU25.2025"
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./worker_temp:/app/worker_temp
-      - ./submissions:/app/submissions
+      - lab_sql_data:/var/opt/mssql
+
+  db-init:
+    image: mcr.microsoft.com/mssql-tools
+    depends_on:
+      - labdb
+    volumes:
+      - ./init_labopp.sql:/init_labopp.sql
+    entrypoint: >
+      /bin/bash -c "
+        sleep 20 &&
+        /opt/mssql-tools/bin/sqlcmd -S labdb -U sa -P DoanSU25.2025 -d master -i /init_labopp.sql
+      "
+      
+ # ====== PHẦN THÊM (không sửa block trên) ======
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  # Ollama AI Models
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+
+  # RAG Service (Node.js)
+  rag-service:
+    build:
+      context: ./rag-cli-nodejs
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    depends_on:
+      - qdrant
+      - ollama
+    environment:
+      - NODE_ENV=production
+      - QDRANT_URL=http://qdrant:6333
+      - OLLAMA_URL=http://ollama:11434
+    volumes:
+      - ./rag-cli-nodejs/uploads:/app/uploads
+
+volumes:
+  lab_sql_data:
+  redis_data:
+  qdrant_data:
+  ollama_data:

@@ -122,9 +122,9 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 			// Xóa TestCase liên quan
 			_context.TestCases.RemoveRange(assignment.TestCases);
 
-			// Xóa Document liên quan
-			var docs = _context.AssignmentDocuments.Where(d => d.AssignmentId == id);
-			_context.AssignmentDocuments.RemoveRange(docs);
+			// Xóa Document liên quan (nếu có)
+			// var docs = _context.AssignmentDocuments.Where(d => d.AssignmentId == id);
+			// _context.AssignmentDocuments.RemoveRange(docs);
 
 			// Xóa assignment
 			_context.LabAssignments.Remove(assignment);
@@ -284,89 +284,57 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 		public async Task<IActionResult> UploadPdf(IFormFile file, [FromForm] int uploadedBy, [FromForm] int assignmentId)
 		{
 			if (file == null || file.Length == 0)
-				return BadRequest(ApiResponse<object>.ErrorResponse("File không tồn tại"));
+				return BadRequest("File không tồn tại");
 
 			if (file.ContentType != "application/pdf")
-				return BadRequest(ApiResponse<object>.ErrorResponse("Chỉ hỗ trợ file PDF"));
+				return BadRequest("Chỉ hỗ trợ file PDF");
 
+			var fileName = $"{Guid.NewGuid()}.pdf";
 			var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "pdf");
 			if (!Directory.Exists(uploadPath))
 				Directory.CreateDirectory(uploadPath);
 
-			var fileName = $"{Guid.NewGuid()}.pdf";
 			var filePath = Path.Combine(uploadPath, fileName);
+			using (var stream = new FileStream(filePath, FileMode.Create))
+				await file.CopyToAsync(stream);
 
-			// check xem assignment đã có file chưa
-			var existingDoc = await _context.AssignmentDocuments
-				.FirstOrDefaultAsync(d => d.AssignmentId == assignmentId);
+			// var doc = new AssignmentDocument
+			// {
+			// 	AssignmentId = assignmentId,
+			// 	FileName = file.FileName,
+			// 	FilePath = $"/uploads/pdf/{fileName}",
+			// 	MimeType = file.ContentType,
+			// 	UploadedBy = uploadedBy,
+			// 	UploadedAt = DateTime.Now
+			// };
 
-			if (existingDoc != null)
-			{
-				// xóa file cũ nếu tồn tại
-				var oldPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", existingDoc.FilePath.TrimStart('/'));
-				if (System.IO.File.Exists(oldPath))
-					System.IO.File.Delete(oldPath);
+			// _context.AssignmentDocuments.Add(doc);
+			// await _context.SaveChangesAsync();
 
-				// ghi đè thông tin file mới
-				using (var stream = new FileStream(filePath, FileMode.Create))
-					await file.CopyToAsync(stream);
-
-				existingDoc.FileName = file.FileName;
-				existingDoc.FilePath = $"/uploads/pdf/{fileName}";
-				existingDoc.MimeType = file.ContentType;
-				existingDoc.UploadedBy = uploadedBy;
-				existingDoc.UploadedAt = DateTime.Now;
-
-				_context.AssignmentDocuments.Update(existingDoc);
-				await _context.SaveChangesAsync();
-
-				return Ok(ApiResponse<int>.SuccessResponse(existingDoc.Id, "Upload file thành công (ghi đè)"));
-			}
-			else
-			{
-				// tạo mới
-				using (var stream = new FileStream(filePath, FileMode.Create))
-					await file.CopyToAsync(stream);
-
-				var doc = new AssignmentDocument
-				{
-					AssignmentId = assignmentId,
-					FileName = file.FileName,
-					FilePath = $"/uploads/pdf/{fileName}",
-					MimeType = file.ContentType,
-					UploadedBy = uploadedBy,
-					UploadedAt = DateTime.Now
-				};
-
-				_context.AssignmentDocuments.Add(doc);
-				await _context.SaveChangesAsync();
-
-				return Ok(ApiResponse<int>.SuccessResponse(doc.Id, "Upload file thành công"));
-			}
+			return Ok(ApiResponse<string>.SuccessResponse(fileName, "Upload file thành công"));
 		}
 
 
-
 		//[HttpPost]
-		//      public async Task<IActionResult> AddPromt([FromBody] PromtCreateDto dto)
-		//      {
-		//          if (dto == null)
-		//              return BadRequest("Invalid data.");
+  //      public async Task<IActionResult> AddPromt([FromBody] PromtCreateDto dto)
+  //      {
+  //          if (dto == null)
+  //              return BadRequest("Invalid data.");
 
-		//          var promt = new Promt
-		//          {
-		//              Id = Guid.NewGuid().ToString(), // tự sinh ID
-		//              PromtDetail = dto.PromtDetail
-		//          };
+  //          var promt = new Promt
+  //          {
+  //              Id = Guid.NewGuid().ToString(), // tự sinh ID
+  //              PromtDetail = dto.PromtDetail
+  //          };
 
-		//          _context.Promts.Add(promt);
-		//          await _context.SaveChangesAsync();
+  //          _context.Promts.Add(promt);
+  //          await _context.SaveChangesAsync();
 
-		//          return Ok(promt);
-		//      }
+  //          return Ok(promt);
+  //      }
 
 
-		private ApiResponse<string> ValidationErrorResponse()
+        private ApiResponse<string> ValidationErrorResponse()
         {
             var errors = ModelState.Values
                 .SelectMany(v => v.Errors)

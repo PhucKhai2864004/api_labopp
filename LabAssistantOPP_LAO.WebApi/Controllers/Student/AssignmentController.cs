@@ -46,28 +46,25 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
 					_context.LabAssignments,
 					assignmentId => assignmentId,
 					assignment => assignment.Id,
-					(assignmentId, assignment) => assignment
+					(assignmentId, assignment) => new
+					{
+						assignment.Id,
+						assignment.Title,
+						assignment.Description,
+						assignment.LocTotal,
+						assignment.CreatedAt
+					}
 				)
-				.Where(a => a.Status == "Active")   // ✅ chỉ lấy bài lab đã duyệt
-				.Select(a => new
-				{
-					a.Id,
-					a.Title,
-					a.Description,
-					a.LocTotal,
-					a.CreatedAt
-				})
 				.ToListAsync();
 
 			return Ok(ApiResponse<object>.SuccessResponse(assignments, "Danh sách bài tập của bạn"));
 		}
 
-
 		[HttpGet("{id:int}")]
 		public async Task<IActionResult> GetAssignmentDetail(int id)
 		{
 			var assignment = await _context.LabAssignments
-				.Where(a => a.Id == id && a.Status == "Active")  // ✅ chỉ cho xem lab active
+				.Where(a => a.Id == id)
 				.Select(a => new AssignmentDetailDto
 				{
 					Title = a.Title,
@@ -78,12 +75,11 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
 
 			if (assignment == null)
 			{
-				return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy bài lab hoặc chưa được duyệt."));
+				return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy bài lab."));
 			}
 
 			return Ok(ApiResponse<AssignmentDetailDto>.SuccessResponse(assignment, "Lấy chi tiết bài lab thành công"));
 		}
-
 
 		[HttpPost("student-lab-assignment")]
 		public async Task<IActionResult> AssignLabToStudent([FromBody] StudentLabAssignmentDto dto)
@@ -279,28 +275,10 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
 		}
 
 		[HttpGet("download-pdf/by-assignment/{assignmentId}")]
-		[AllowAnonymous]
 		public async Task<IActionResult> DownloadPdfByAssignment(int assignmentId)
 		{
-			var doc = await _context.AssignmentDocuments
-				.FirstOrDefaultAsync(d => d.AssignmentId == assignmentId);
-
-			if (doc == null || string.IsNullOrEmpty(doc.FilePath))
-				return NotFound("Không tìm thấy tài liệu PDF cho assignment này.");
-
-			// Ghép đường dẫn thực tế
-			var filePath = Path.Combine(
-				Directory.GetCurrentDirectory(),
-				"wwwroot",
-				doc.FilePath.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString())
-			);
-
-			if (!System.IO.File.Exists(filePath))
-				return NotFound("File không tồn tại trên server");
-
-			var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
-
-			return File(fileBytes, doc.MimeType ?? "application/pdf", doc.FileName);
+			// TODO: Implement PDF download when AssignmentDocuments is available
+			return NotFound("PDF download feature is temporarily unavailable");
 		}
 
 
@@ -325,6 +303,33 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
 			var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
 			return File(fileBytes, "application/zip", Path.GetFileName(filePath));
 		}
-		
+
+
+		//[HttpGet("download-pdf/{assignmentId:int}")]
+		//[AllowAnonymous]
+		//public async Task<IActionResult> DownloadPdf(int assignmentId)
+		//{
+		//	var assignment = await _context.LabAssignments.FirstOrDefaultAsync(a => a.Id == assignmentId);
+
+		//	if (assignment == null || assignment.FileId == null)
+		//	{
+		//		return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy file cho assignment này"));
+		//	}
+
+		//	var file = await _context.Files.FirstOrDefaultAsync(f => f.Id == assignment.FileId.Value);
+		//	if (file == null)
+		//	{
+		//		return NotFound(ApiResponse<string>.ErrorResponse("File không tồn tại trong hệ thống"));
+		//	}
+
+		//	var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", file.Path);
+		//	if (!System.IO.File.Exists(filePath))
+		//	{
+		//		return NotFound(ApiResponse<string>.ErrorResponse("File không tồn tại trên server"));
+		//	}
+
+		//	var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+		//	return File(fileBytes, file.MimeType, file.OriginName);
+		//}
 	}
 }

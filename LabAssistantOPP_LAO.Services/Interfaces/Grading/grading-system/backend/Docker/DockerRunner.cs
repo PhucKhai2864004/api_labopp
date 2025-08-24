@@ -5,106 +5,50 @@ namespace Business_Logic.Interfaces.Workers.Docker
 {
 	public class DockerRunner
 	{
+		private readonly IConfiguration _configuration;
+
+		public DockerRunner(IConfiguration configuration)
+		{
+			_configuration = configuration;
+		}
+
 		public async Task<ExecutionResult> ExecuteAsync(string workDir, string mainClass, string inputPath, string outputPath)
 		{
 			var startTime = DateTime.UtcNow;
-			string stderr = "";
+
+			var ioDir = Path.GetDirectoryName(inputPath)!;
+			var dockerIoDir = ioDir.Replace("\\", "/").ToLowerInvariant();
+
+			workDir = Path.GetFullPath(workDir);
+			var dockerWorkDir = workDir.Replace("\\", "/").ToLowerInvariant();
+
+			var uid = _configuration["Docker:UID"] ?? "1000";
+			var gid = _configuration["Docker:GID"] ?? "1000";
+
+			var process = new Process
+			{
+				StartInfo = new ProcessStartInfo
+				{
+					FileName = "docker",
+					Arguments = $"run --rm --user {uid}:{gid} --network none -v \"{dockerWorkDir}:/app\" -v \"{dockerIoDir}:/io\" -w /app my-openjdk17 " +
+									$"sh -c \"mkdir -p bin && javac -d bin $(find . -name \"*.java\") && java -cp bin {mainClass} < /io/input.txt > /io/output.txt\"",
+					RedirectStandardOutput = true,
+					RedirectStandardError = true,
+					UseShellExecute = false,
+					CreateNoWindow = true,
+					WorkingDirectory = workDir
+				}
+			};
+
+			process.Start();
+
+			var stderr = await process.StandardError.ReadToEndAsync();
+			process.WaitForExit();
+
 			string output = "";
-
-
-			try
+			if (File.Exists(outputPath))
 			{
-				// Detect source directory
-				var sourceDir = DetectSourceDir(workDir);
-
-				// Tìm tất cả file .java
-				var sourceFiles = Directory.GetFiles(sourceDir, "*.java", SearchOption.AllDirectories)
-										   .Select(f => Path.GetRelativePath(workDir, f).Replace("\\", "/"))
-										   .ToList();
-
-				if (!sourceFiles.Any())
-				{
-					return new ExecutionResult
-					{
-						Output = "",
-						Stderr = "No Java source files found.",
-						DurationMs = (int)(DateTime.UtcNow - startTime).TotalMilliseconds
-					};
-				}
-
-				// Tạo file chứa danh sách nguồn (javac hỗ trợ @sources.txt)
-				var sourcesFile = Path.Combine(workDir, "sources.txt");
-				await File.WriteAllLinesAsync(sourcesFile, sourceFiles);
-
-				// Đảm bảo có bin directory
-				Directory.CreateDirectory(Path.Combine(workDir, "bin"));
-
-				// 1. Compile
-				var compile = new Process
-				{
-					StartInfo = new ProcessStartInfo
-					{
-						FileName = "javac",
-						Arguments = $"-encoding UTF-8 -d bin @sources.txt",
-						RedirectStandardError = true,
-						RedirectStandardOutput = true,
-						UseShellExecute = false,
-						CreateNoWindow = true,
-						WorkingDirectory = workDir
-					}
-				};
-
-				compile.Start();
-				var compileErr = await compile.StandardError.ReadToEndAsync();
-				compile.WaitForExit();
-
-				if (compile.ExitCode != 0)
-				{
-					return new ExecutionResult
-					{
-						Output = "",
-						Stderr = compileErr,
-						DurationMs = (int)(DateTime.UtcNow - startTime).TotalMilliseconds
-					};
-				}
-
-				// 2. Run
-				var run = new Process
-				{
-					StartInfo = new ProcessStartInfo
-					{
-						FileName = "java",
-						Arguments = $"-cp bin " + mainClass,
-						RedirectStandardInput = true,
-						RedirectStandardOutput = true,
-						RedirectStandardError = true,
-						UseShellExecute = false,
-						CreateNoWindow = true,
-						WorkingDirectory = workDir
-					}
-				};
-
-				run.Start();
-
-				// Nếu có input thì ghi vào stdin
-				if (File.Exists(inputPath))
-				{
-					var input = await File.ReadAllTextAsync(inputPath);
-					await run.StandardInput.WriteAsync(input);
-					run.StandardInput.Close();
-				}
-
-				output = await run.StandardOutput.ReadToEndAsync();
-				stderr = await run.StandardError.ReadToEndAsync();
-
-				run.WaitForExit();
-
-				// Ghi output ra file
-				await File.WriteAllTextAsync(outputPath, output);
-			}
-			catch (Exception ex)
-			{
-				stderr = ex.ToString();
+				output = await File.ReadAllTextAsync(outputPath);
 			}
 
 			return new ExecutionResult
@@ -114,17 +58,7 @@ namespace Business_Logic.Interfaces.Workers.Docker
 				DurationMs = (int)(DateTime.UtcNow - startTime).TotalMilliseconds
 			};
 		}
-
-		private string DetectSourceDir(string workDir)
-		{
-			var srcPath = Path.Combine(workDir, "src");
-			if (Directory.Exists(srcPath))
-				return srcPath;
-
-			return workDir;
-		}
 	}
-
 	public class ExecutionResult
 	{
 		public string Output { get; set; }
