@@ -24,7 +24,7 @@ const upload = multer({
 });
 
 // Initialize Qdrant client
-const qdrantClient = new QdrantClient({ url: 'http://localhost:6333' });
+const qdrantClient = new QdrantClient({ url: 'http://qdrant:6333' });
 
 // Debug logging function
 function debugLog(message, data = null) {
