@@ -7,12 +7,11 @@ namespace Business_Logic.Interfaces.AI
     {
         // RAG Service Integration
         Task<IngestResult> IngestPDFAsync(IFormFile pdfFile, int assignmentId);
-        Task<CodeReviewResult> ReviewCodeAsync(int assignmentId, string studentCode);
+        Task<CodeReviewResult> ReviewCodeAsync(int assignmentId, int submissionId);  // Thay đổi parameter
         Task<TestCaseSuggestionResult> SuggestTestCasesAsync(int assignmentId);
 
         // Legacy Methods (for compatibility)
         Task<bool> IngestPDFAsync(int assignmentId, IFormFile pdfFile);
-        Task<CodeReviewResult> ReviewStudentSubmissionAsync(int assignmentId, string studentCode);
     }
 
     public class IngestResult
@@ -30,6 +29,7 @@ namespace Business_Logic.Interfaces.AI
     {
         public bool ReviewAllowed { get; set; }
         public int AssignmentId { get; set; }
+        public int SubmissionId { get; set; }  // Thêm SubmissionId vào result
         public string Review { get; set; } = "";
         public bool HasErrors { get; set; }
         public int ErrorCount { get; set; }

@@ -315,17 +315,35 @@ namespace Business_Logic.Services.AI
             }
         }
 
-        public async Task<CodeReviewResult> ReviewCodeAsync(int assignmentId, string studentCode)
+        public async Task<CodeReviewResult> ReviewCodeAsync(int assignmentId, int submissionId)
         {
             try
             {
-                _logger.LogInformation($"Reviewing code for assignment {assignmentId}, student code length: {studentCode?.Length ?? 0}");
+                _logger.LogInformation($"Reviewing code for assignment {assignmentId}, submission {submissionId}");
+
+                // TODO: Cần inject DbContext để lấy submission data
+                // Tạm thời sử dụng placeholder logic
+                string extractedCode = await ExtractCodeFromSubmissionAsync(submissionId);
+                
+                if (string.IsNullOrEmpty(extractedCode))
+                {
+                    return new CodeReviewResult
+                    {
+                        ReviewAllowed = false,
+                        AssignmentId = assignmentId,
+                        SubmissionId = submissionId,
+                        Error = "Could not extract code from submission"
+                    };
+                }
+
+                _logger.LogInformation($"Extracted code length: {extractedCode.Length}");
 
                 // Gọi RAG service để review code
                 var reviewRequest = new
                 {
                     assignmentId = assignmentId.ToString(),
-                    studentCode
+                    submissionId = submissionId.ToString(),
+                    extractedCode
                 };
 
                 var jsonContent = JsonSerializer.Serialize(reviewRequest);
@@ -342,6 +360,8 @@ namespace Business_Logic.Services.AI
                     return new CodeReviewResult
                     {
                         ReviewAllowed = false,
+                        AssignmentId = assignmentId,
+                        SubmissionId = submissionId,
                         Error = $"Review failed: {response.StatusCode} - {responseString}"
                     };
                 }
@@ -355,6 +375,7 @@ namespace Business_Logic.Services.AI
                     {
                         ReviewAllowed = true,
                         AssignmentId = assignmentId,
+                        SubmissionId = submissionId,
                         RawResponse = responseString
                     };
 
@@ -379,7 +400,7 @@ namespace Business_Logic.Services.AI
                         reviewResult.Summary = summaryElement.GetString();
                     }
 
-                    _logger.LogInformation($"✅ Successfully reviewed code for assignment {assignmentId}");
+                    _logger.LogInformation($"✅ Successfully reviewed code for assignment {assignmentId}, submission {submissionId}");
                     return reviewResult;
                 }
                 catch (JsonException ex)
@@ -389,6 +410,7 @@ namespace Business_Logic.Services.AI
                     {
                         ReviewAllowed = true,
                         AssignmentId = assignmentId,
+                        SubmissionId = submissionId,
                         Review = responseString,
                         RawResponse = responseString
                     };
@@ -396,12 +418,46 @@ namespace Business_Logic.Services.AI
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error reviewing code for assignment {assignmentId}");
+                _logger.LogError(ex, $"Error reviewing code for assignment {assignmentId}, submission {submissionId}");
                 return new CodeReviewResult
                 {
                     ReviewAllowed = false,
+                    AssignmentId = assignmentId,
+                    SubmissionId = submissionId,
                     Error = ex.Message
                 };
+            }
+        }
+
+        /// <summary>
+        /// Extract code from submission ZIP file
+        /// </summary>
+        private async Task<string> ExtractCodeFromSubmissionAsync(int submissionId)
+        {
+            try
+            {
+                // TODO: Implement actual logic to:
+                // 1. Get submission from database
+                // 2. Extract ZIP file
+                // 3. Read all code files
+                // 4. Return concatenated code
+                
+                _logger.LogInformation($"Extracting code from submission {submissionId}");
+                
+                // Placeholder implementation
+                // In real implementation, this would:
+                // - Query database for submission
+                // - Get file path to ZIP
+                // - Extract ZIP to temp directory
+                // - Read all .java, .cpp, .py files
+                // - Concatenate with file headers
+                
+                return "// Placeholder extracted code\npublic class Main {\n    public static void main(String[] args) {\n        // Student code would be here\n    }\n}";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error extracting code from submission {submissionId}");
+                return "";
             }
         }
 
@@ -470,11 +526,6 @@ namespace Business_Logic.Services.AI
         {
             var result = await IngestPDFAsync(pdfFile, assignmentId);
             return result.Success;
-        }
-
-        public async Task<CodeReviewResult> ReviewStudentSubmissionAsync(int assignmentId, string studentCode)
-        {
-            return await ReviewCodeAsync(assignmentId, studentCode);
         }
 
         #endregion

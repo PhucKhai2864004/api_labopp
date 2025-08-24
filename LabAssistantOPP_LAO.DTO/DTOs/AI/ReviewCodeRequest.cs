@@ -11,19 +11,10 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.AI
         public int AssignmentId { get; set; }
 
         /// <summary>
-        /// Code của student cần review
+        /// ID của submission (bài nộp) - integer từ database
         /// </summary>
-        [Required(ErrorMessage = "Student code is required")]
-        public string StudentCode { get; set; } = "";
-
-        /// <summary>
-        /// Loại thuật toán (tùy chọn)
-        /// </summary>
-        public string? AlgorithmType { get; set; }
-
-        /// <summary>
-        /// Ngôn ngữ lập trình (tùy chọn)
-        /// </summary>
-        public string? Language { get; set; } = "Java";
+        [Required(ErrorMessage = "Submission ID is required")]
+        [Range(1, int.MaxValue, ErrorMessage = "Submission ID must be a positive integer")]
+        public int SubmissionId { get; set; }
     }
 }

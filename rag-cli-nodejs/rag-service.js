@@ -389,20 +389,20 @@ async function similaritySearch(query, assignmentId, limit = 5) {
 // Review student code
 app.post('/review-code', async (req, res) => {
     try {
-        const { assignmentId, studentCode, algorithmType = 'General', language = 'Java' } = req.body;
+        const { assignmentId, submissionId, extractedCode, algorithmType = 'General', language = 'Java' } = req.body;
 
-        debugLog('Code review request received', { assignmentId, hasStudentCode: !!studentCode, algorithmType, language });
+        debugLog('Code review request received', { assignmentId, submissionId, hasExtractedCode: !!extractedCode, algorithmType, language });
 
-        if (!assignmentId || !studentCode) {
-            debugLog('Missing required fields for code review', { hasAssignmentId: !!assignmentId, hasStudentCode: !!studentCode });
+        if (!assignmentId || !submissionId || !extractedCode) {
+            debugLog('Missing required fields for code review', { hasAssignmentId: !!assignmentId, hasSubmissionId: !!submissionId, hasExtractedCode: !!extractedCode });
             return res.status(400).json({
                 success: false,
-                error: 'AssignmentId and StudentCode required'
+                error: 'AssignmentId, SubmissionId, and ExtractedCode required'
             });
         }
 
         // Get relevant context from RAG
-        debugLog('Getting RAG context for code review', { assignmentId });
+        debugLog('Getting RAG context for code review', { assignmentId, submissionId });
         const context = await similaritySearch('code review', assignmentId, 3);
         const contextText = context.map(c => c.text).join('\n\n');
 
@@ -412,8 +412,8 @@ app.post('/review-code', async (req, res) => {
 Assignment Context:
 ${contextText}
 
-Student Code:
-${studentCode}
+Student Code (from submission ${submissionId}):
+${extractedCode}
 
 Language: ${language}
 Algorithm Type: ${algorithmType}
@@ -434,7 +434,7 @@ Format your response as JSON with the following structure:
 }`;
 
         // Call Ollama for code review
-        debugLog('Calling Ollama for code review', { assignmentId, promptLength: prompt.length });
+        debugLog('Calling Ollama for code review', { assignmentId, submissionId, promptLength: prompt.length });
         const llmResponse = await fetch('http://localhost:11434/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -471,24 +471,25 @@ Format your response as JSON with the following structure:
             };
         }
 
-        debugLog('Code review completed successfully', { assignmentId, hasErrors: reviewResult.hasErrors, errorCount: reviewResult.errorCount });
+        debugLog('Code review completed successfully', { assignmentId, submissionId, hasErrors: reviewResult.hasErrors, errorCount: reviewResult.errorCount });
         res.json({
             success: true,
             assignmentId: assignmentId,
+            submissionId: submissionId,
             reviewAllowed: true,
             review: reviewResult.review,
             hasErrors: reviewResult.hasErrors,
             errorCount: reviewResult.errorCount,
-            summary: reviewResult.summary
+            summary: reviewResult.summary,
+            rawResponse: llmData.response
         });
 
     } catch (error) {
-        debugLog('Error in code review', { error: error.message, assignmentId });
+        debugLog('Error in code review', { error: error.message, stack: error.stack });
         console.error('Error in code review:', error);
         res.status(500).json({
             success: false,
-            error: error.message,
-            reviewAllowed: false
+            error: error.message
         });
     }
 });
