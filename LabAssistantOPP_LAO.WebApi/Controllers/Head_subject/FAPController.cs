@@ -1,4 +1,5 @@
 ﻿using Business_Logic.Services.FapSync;
+using LabAssistantOPP_LAO.Models.Common;
 using LabAssistantOPP_LAO.Models.Data;
 using LabAssistantOPP_LAO.Models.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -23,7 +24,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 		public async Task<IActionResult> SyncFap()
 		{
 			await _fapSync.SyncFapAsync();
-			return Ok("FAP sync completed.");
+			return Ok(ApiResponse<object>.SuccessResponse(null, "FAP sync completed."));
 		}
 	}
 }
