@@ -55,7 +55,6 @@ services:
   # ====== RAG INFRASTRUCTURE ======
   qdrant:
     image: qdrant/qdrant:latest
-    container_name: labopp_qdrant
     restart: always
     ports:
       - "6333:6333"    # External access for monitoring
@@ -66,7 +65,6 @@ services:
 
   ollama:
     image: ollama/ollama:latest
-    container_name: labopp_ollama
     restart: always
     ports:
       - "11434:11434"  # External access for model management
