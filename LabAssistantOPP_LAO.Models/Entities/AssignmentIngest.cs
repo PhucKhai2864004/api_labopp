@@ -25,8 +25,9 @@ public partial class AssignmentIngest
 
     public string? Message { get; set; }
 
-    // Comment out navigation properties to prevent shadow properties
-    // public virtual LabAssignment Assignment { get; set; } = null!;
-    // public virtual AssignmentDocument Document { get; set; } = null!;
-    // public virtual VectorIndex VectorIndex { get; set; } = null!;
+    public virtual LabAssignment Assignment { get; set; } = null!;
+
+    public virtual AssignmentDocument Document { get; set; } = null!;
+
+    public virtual VectorIndex VectorIndex { get; set; } = null!;
 }

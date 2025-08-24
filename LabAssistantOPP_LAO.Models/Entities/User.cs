@@ -29,10 +29,7 @@ public partial class User
 
     public virtual ICollection<AssignmentApproval> AssignmentApprovals { get; set; } = new List<AssignmentApproval>();
 
-    // Comment out navigation properties to prevent shadow properties
-    // public virtual ICollection<AssignmentDocument> AssignmentDocuments { get; set; } = new List<AssignmentDocument>();
-    // public virtual ICollection<AssignmentDocument> AssignmentDocumentsUploaded { get; set; }
-    //     = new List<AssignmentDocument>();   // CHỈ để 1 collection cho quan hệ UploadedBy
+    public virtual ICollection<AssignmentDocument> AssignmentDocuments { get; set; } = new List<AssignmentDocument>();
 
     public virtual ICollection<ClassSlotLog> ClassSlotLogs { get; set; } = new List<ClassSlotLog>();
 
@@ -55,6 +52,4 @@ public partial class User
     public virtual Teacher? Teacher { get; set; }
 
     public virtual ICollection<TestCase> TestCases { get; set; } = new List<TestCase>();
- 
-
 }

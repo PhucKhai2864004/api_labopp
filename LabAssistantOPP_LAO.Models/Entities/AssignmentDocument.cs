@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace LabAssistantOPP_LAO.Models.Entities;
 
@@ -20,8 +19,9 @@ public partial class AssignmentDocument
 
     public DateTime UploadedAt { get; set; }
 
-    // Comment out navigation properties to prevent shadow properties
-    // public virtual LabAssignment Assignment { get; set; } = null!;
-    // public virtual ICollection<AssignmentIngest> AssignmentIngests { get; set; } = new List<AssignmentIngest>();
-    // public virtual User? UploadedByNavigation { get; set; }
+    public virtual LabAssignment Assignment { get; set; } = null!;
+
+    public virtual ICollection<AssignmentIngest> AssignmentIngests { get; set; } = new List<AssignmentIngest>();
+
+    public virtual User? UploadedByNavigation { get; set; }
 }

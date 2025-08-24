@@ -77,7 +77,8 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		[HttpPost("load-from-files")]
 		public async Task<IActionResult> LoadFromFiles(
 			[FromForm] int assignmentId,
-			[FromForm] List<IFormFile> files)
+			[FromForm] List<IFormFile> files,
+			[FromForm] List<string>? descriptions)
 		{
 			if (files == null || files.Count == 0)
 				return BadRequest(ApiResponse<object>.ErrorResponse("No files uploaded."));
@@ -112,9 +113,14 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 			// Load test case
 			var testCases = TestCaseFileLoader.LoadTestCasesFromFolder(tempFolder, assignmentId, createdBy);
 
-			foreach (var tc in testCases)
+			for (int i = 0; i < testCases.Count; i++)
 			{
-				assignment.TestCases.Add(tc);
+				if (descriptions != null && i < descriptions.Count)
+					testCases[i].Description = descriptions[i]; // 👈 set mô tả nhập tay
+				else
+					testCases[i].Description = $"Test case {i + 1}";
+
+				assignment.TestCases.Add(testCases[i]);
 			}
 
 			await _context.SaveChangesAsync();
