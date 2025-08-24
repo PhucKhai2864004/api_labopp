@@ -782,6 +782,31 @@ app.get('/debug/assignment/:assignmentId', async (req, res) => {
     }
 });
 
+// Check if assignment exists in RAG system
+app.get('/check-assignment/:assignmentId', async (req, res) => {
+    try {
+        const { assignmentId } = req.params;
+        debugLog('Check assignment request received', { assignmentId });
+        
+        const exists = await checkAssignmentExists(assignmentId);
+        
+        debugLog('Assignment existence check result', { assignmentId, exists });
+        
+        res.json({
+            success: true,
+            assignmentId: assignmentId,
+            exists: exists,
+            message: exists ? 'Assignment found in RAG system' : 'Assignment not found in RAG system'
+        });
+    } catch (error) {
+        debugLog('Error checking assignment existence', { error: error.message, assignmentId: req.params.assignmentId });
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // Get assignment context
 app.get('/context/:assignmentId', async (req, res) => {
     try {
@@ -821,6 +846,58 @@ app.get('/context/:assignmentId', async (req, res) => {
 
     } catch (error) {
         console.error('Error getting assignment context:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Get assignment info and context
+app.get('/assignment-info/:assignmentId', async (req, res) => {
+    try {
+        const { assignmentId } = req.params;
+        debugLog('Assignment info request received', { assignmentId });
+        
+        const hasRAGData = await checkAssignmentExists(assignmentId);
+        
+        if (!hasRAGData) {
+            return res.status(404).json({
+                success: false,
+                error: 'No RAG context found for this assignment'
+            });
+        }
+
+        // Get all chunks for this assignment
+        const response = await qdrantClient.scroll('assignments', {
+            filter: {
+                must: [
+                    { key: 'assignmentId', match: { value: assignmentId.toString() } }
+                ]
+            },
+            limit: 100
+        });
+
+        const chunks = response.points.map(point => ({
+            id: point.id,
+            text: point.payload.text,
+            chunkId: point.payload.chunkId
+        }));
+
+        // Combine all text for context
+        const context = chunks.map(chunk => chunk.text).join('\n\n');
+
+        res.json({
+            success: true,
+            assignmentId: assignmentId,
+            exists: true,
+            totalChunks: chunks.length,
+            context: context,
+            chunks: chunks
+        });
+
+    } catch (error) {
+        debugLog('Error getting assignment info', { error: error.message, assignmentId: req.params.assignmentId });
         res.status(500).json({
             success: false,
             error: error.message

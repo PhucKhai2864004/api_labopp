@@ -31,11 +31,14 @@ namespace Business_Logic.Services.AI
             _ragServiceUrl = configuration["AIServices:RAGServiceUrl"] ?? "http://localhost:3001";
             _aiServiceUrl = configuration["AIServices:AIServiceUrl"] ?? "http://localhost:3000";
             _geminiApiKey = configuration["AIServices:GeminiApiKey"] ?? "AIzaSyDxFNK8N6Y9bkLkNwhoENVhq-gNHH3UrnY";
+            
+            // Set timeout to 120 seconds for RAG operations
+            _httpClient.Timeout = TimeSpan.FromSeconds(120);
         }
 
         #region RAG Service Integration
 
-        public async Task<IngestResult> IngestPDFAsync(IFormFile pdfFile, string assignmentId)
+        public async Task<IngestResult> IngestPDFAsync(IFormFile pdfFile, int assignmentId)
         {
             try
             {
@@ -45,7 +48,7 @@ namespace Business_Logic.Services.AI
                 using var fileStream = pdfFile.OpenReadStream();
                 using var streamContent = new StreamContent(fileStream);
 
-                formData.Add(new StringContent(assignmentId), "assignmentId");
+                formData.Add(new StringContent(assignmentId.ToString()), "assignmentId");
                 formData.Add(streamContent, "pdfFile", pdfFile.FileName);
 
                 var response = await _httpClient.PostAsync($"{_ragServiceUrl}/ingest", formData);
@@ -81,7 +84,15 @@ namespace Business_Logic.Services.AI
                     // Extract thông tin từ response
                     if (ragResponse.TryGetProperty("assignmentId", out var idElement))
                     {
-                        ingestResult.AssignmentId = idElement.GetString() ?? assignmentId;
+                        var idString = idElement.GetString();
+                        if (int.TryParse(idString, out int parsedId))
+                        {
+                            ingestResult.AssignmentId = parsedId;
+                        }
+                        else
+                        {
+                            ingestResult.AssignmentId = assignmentId;
+                        }
                     }
 
                     if (ragResponse.TryGetProperty("chunks", out var chunksElement))
@@ -124,7 +135,7 @@ namespace Business_Logic.Services.AI
             }
         }
 
-        public async Task<TestCaseSuggestionResult> SuggestTestCasesAsync(string assignmentId)
+        public async Task<TestCaseSuggestionResult> SuggestTestCasesAsync(int assignmentId)
         {
             try
             {
@@ -145,7 +156,7 @@ namespace Business_Logic.Services.AI
                 // Gọi RAG service để suggest test cases (chỉ cần assignmentId)
                 var suggestionRequest = new
                 {
-                    assignmentId
+                    assignmentId = assignmentId.ToString()
                 };
 
                 var jsonContent = JsonSerializer.Serialize(suggestionRequest);
@@ -169,8 +180,11 @@ namespace Business_Logic.Services.AI
                 // Parse suggestion response
                 try
                 {
-                    var suggestionResponse = JsonSerializer.Deserialize<JsonElement>(responseString);
-
+                    _logger.LogInformation($"Parsing response: {responseString}");
+                    
+                    // Try to parse as dynamic object first
+                    var responseObj = JsonSerializer.Deserialize<JsonElement>(responseString);
+                    
                     var suggestionResult = new TestCaseSuggestionResult
                     {
                         Success = true,
@@ -178,15 +192,98 @@ namespace Business_Logic.Services.AI
                         RawResponse = responseString
                     };
 
-                    // Extract test cases
-                    if (suggestionResponse.TryGetProperty("testCases", out var testCasesElement))
+                    // First try to extract from the main response
+                    if (responseObj.TryGetProperty("testCases", out var testCasesElement))
                     {
-                        var testCases = JsonSerializer.Deserialize<List<TestCaseSuggestion>>(testCasesElement.GetRawText());
-                        suggestionResult.TestCases = testCases ?? new List<TestCaseSuggestion>();
+                        _logger.LogInformation($"Found testCases element with {testCasesElement.GetArrayLength()} items");
+                        
+                        var testCases = new List<TestCaseSuggestion>();
+                        foreach (var testCaseElement in testCasesElement.EnumerateArray())
+                        {
+                            var testCase = new TestCaseSuggestion();
+                            
+                            if (testCaseElement.TryGetProperty("input", out var inputElement))
+                            {
+                                testCase.Input = inputElement.GetString() ?? "";
+                            }
+                            
+                            if (testCaseElement.TryGetProperty("expectedOutput", out var outputElement))
+                            {
+                                testCase.ExpectedOutput = outputElement.GetString() ?? "";
+                            }
+                            
+                            testCases.Add(testCase);
+                        }
+                        
+                        suggestionResult.TestCases = testCases;
+                        _logger.LogInformation($"Extracted {suggestionResult.TestCases.Count} test cases from main response");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("No testCases property found in main response, trying rawResponse");
+                        
+                        // Try to extract from rawResponse (which contains the actual LLM response)
+                        if (responseObj.TryGetProperty("rawResponse", out var rawResponseElement))
+                        {
+                            var rawResponseString = rawResponseElement.GetString();
+                            _logger.LogInformation($"Found rawResponse: {rawResponseString}");
+                            
+                            try
+                            {
+                                var rawResponseObj = JsonSerializer.Deserialize<JsonElement>(rawResponseString);
+                                
+                                if (rawResponseObj.TryGetProperty("testCases", out var rawTestCasesElement))
+                                {
+                                    _logger.LogInformation($"Found testCases in rawResponse with {rawTestCasesElement.GetArrayLength()} items");
+                                    
+                                    var testCases = new List<TestCaseSuggestion>();
+                                    foreach (var testCaseElement in rawTestCasesElement.EnumerateArray())
+                                    {
+                                        var testCase = new TestCaseSuggestion();
+                                        
+                                        if (testCaseElement.TryGetProperty("input", out var inputElement))
+                                        {
+                                            testCase.Input = inputElement.GetString() ?? "";
+                                        }
+                                        
+                                        if (testCaseElement.TryGetProperty("expectedOutput", out var outputElement))
+                                        {
+                                            testCase.ExpectedOutput = outputElement.GetString() ?? "";
+                                        }
+                                        
+                                        testCases.Add(testCase);
+                                    }
+                                    
+                                    suggestionResult.TestCases = testCases;
+                                    _logger.LogInformation($"Extracted {suggestionResult.TestCases.Count} test cases from rawResponse");
+                                }
+                                else
+                                {
+                                    _logger.LogWarning("No testCases found in rawResponse either");
+                                    suggestionResult.TestCases = new List<TestCaseSuggestion>();
+                                }
+                                
+                                // Extract suggestions from rawResponse
+                                if (rawResponseObj.TryGetProperty("suggestions", out var rawSuggestionsElement))
+                                {
+                                    suggestionResult.Suggestions = rawSuggestionsElement.GetString() ?? "";
+                                }
+                            }
+                            catch (JsonException ex)
+                            {
+                                _logger.LogError(ex, "Failed to parse rawResponse JSON");
+                                suggestionResult.TestCases = new List<TestCaseSuggestion>();
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning("No rawResponse property found");
+                            suggestionResult.TestCases = new List<TestCaseSuggestion>();
+                        }
                     }
 
-                    // Extract suggestions
-                    if (suggestionResponse.TryGetProperty("suggestions", out var suggestionsElement))
+                    // Extract suggestions from main response if not already set
+                    if (string.IsNullOrEmpty(suggestionResult.Suggestions) && responseObj.TryGetProperty("suggestions", out var suggestionsElement))
                     {
                         suggestionResult.Suggestions = suggestionsElement.GetString() ?? "";
                     }
@@ -218,7 +315,7 @@ namespace Business_Logic.Services.AI
             }
         }
 
-        public async Task<CodeReviewResult> ReviewCodeAsync(string assignmentId, string studentCode)
+        public async Task<CodeReviewResult> ReviewCodeAsync(int assignmentId, string studentCode)
         {
             try
             {
@@ -227,7 +324,7 @@ namespace Business_Logic.Services.AI
                 // Gọi RAG service để review code
                 var reviewRequest = new
                 {
-                    assignmentId,
+                    assignmentId = assignmentId.ToString(),
                     studentCode
                 };
 
@@ -308,22 +405,29 @@ namespace Business_Logic.Services.AI
             }
         }
 
-        private async Task<bool> CheckAssignmentHasRAGDataAsync(string assignmentId)
+        private async Task<bool> CheckAssignmentHasRAGDataAsync(int assignmentId)
         {
             try
             {
+                _logger.LogInformation($"Checking RAG data for assignment {assignmentId} at {_ragServiceUrl}/check-assignment/{assignmentId}");
+                
                 var response = await _httpClient.GetAsync($"{_ragServiceUrl}/check-assignment/{assignmentId}");
                 var responseString = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation($"RAG check response: {response.StatusCode} - {responseString}");
 
                 if (response.IsSuccessStatusCode)
                 {
                     var checkResponse = JsonSerializer.Deserialize<JsonElement>(responseString);
                     if (checkResponse.TryGetProperty("exists", out var existsElement))
                     {
-                        return existsElement.GetBoolean();
+                        var exists = existsElement.GetBoolean();
+                        _logger.LogInformation($"Assignment {assignmentId} exists in RAG: {exists}");
+                        return exists;
                     }
                 }
 
+                _logger.LogWarning($"Failed to check RAG data for assignment {assignmentId}: {response.StatusCode}");
                 return false;
             }
             catch (Exception ex)
@@ -333,7 +437,7 @@ namespace Business_Logic.Services.AI
             }
         }
 
-        private async Task<string> GetAssignmentContextAsync(string assignmentId)
+        private async Task<string> GetAssignmentContextAsync(int assignmentId)
         {
             try
             {
@@ -362,13 +466,13 @@ namespace Business_Logic.Services.AI
 
         #region Legacy Methods (for compatibility)
 
-        public async Task<bool> IngestPDFAsync(string assignmentId, IFormFile pdfFile)
+        public async Task<bool> IngestPDFAsync(int assignmentId, IFormFile pdfFile)
         {
             var result = await IngestPDFAsync(pdfFile, assignmentId);
             return result.Success;
         }
 
-        public async Task<CodeReviewResult> ReviewStudentSubmissionAsync(string assignmentId, string studentCode)
+        public async Task<CodeReviewResult> ReviewStudentSubmissionAsync(int assignmentId, string studentCode)
         {
             return await ReviewCodeAsync(assignmentId, studentCode);
         }

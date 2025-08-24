@@ -71,7 +71,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.AI
                 }
 
                 // 3. Gọi RAG service để xử lý
-                var result = await _aiService.IngestPDFAsync(request.PdfFile, request.AssignmentId.ToString());
+                var result = await _aiService.IngestPDFAsync(request.PdfFile, request.AssignmentId);
 
                 if (result.Success)
                 {
@@ -148,7 +148,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.AI
                 if (string.IsNullOrWhiteSpace(request.StudentCode))
                     return BadRequest(ApiResponse<object>.ErrorResponse("StudentCode is required"));
 
-                var result = await _aiService.ReviewCodeAsync(request.AssignmentId.ToString(), request.StudentCode);
+                var result = await _aiService.ReviewCodeAsync(request.AssignmentId, request.StudentCode);
 
                 if (result.ReviewAllowed)
                 {
@@ -181,7 +181,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.AI
         /// Suggest test cases for assignment based on RAG context
         /// </summary>
         [HttpPost("suggest-testcases")]
-        [Authorize(Roles = "Student,Teacher,HeadSubject")]
+        [Authorize(Roles = "Student,Teacher,Head Subject")]
         public async Task<IActionResult> SuggestTestCases([FromBody] SuggestTestCasesRequest request)
         {
             try
@@ -189,7 +189,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.AI
                 if (request.AssignmentId <= 0)
                     return BadRequest(ApiResponse<object>.ErrorResponse("AssignmentId is required"));
 
-                var result = await _aiService.SuggestTestCasesAsync(request.AssignmentId.ToString());
+                var result = await _aiService.SuggestTestCasesAsync(request.AssignmentId);
 
                 if (result.Success)
                 {
@@ -241,7 +241,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.AI
 
     public class ReviewCodeRequest
     {
-        public string AssignmentId { get; set; } = "";
+        public int AssignmentId { get; set; }
         public string StudentCode { get; set; } = "";
     }
 }

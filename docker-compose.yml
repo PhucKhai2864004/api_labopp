@@ -27,6 +27,11 @@ services:
       - Docker__UID=1000
       - Docker__GID=1000
 
+      # AI Services
+      - AIServices__RAGServiceUrl=http://rag-service:3001
+      - AIServices__AIServiceUrl=http://localhost:3000
+      - AIServices__GeminiApiKey=AIzaSyDxFNK8N6Y9bkLkNwhoENVhq-gNHH3UrnY
+
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock   
 
@@ -34,6 +39,7 @@ services:
 
     depends_on:
       - java-sandbox
+      - rag-service
 
   java-sandbox:
     build:
@@ -88,7 +94,7 @@ services:
       ollama:
         condition: service_healthy
     ports:
-      - "3002:3001"    # bỏ nếu chỉ gọi nội bộ từ webapi
+      - "3001:3001"    # bỏ nếu chỉ gọi nội bộ từ webapi
     environment:
       - NODE_ENV=production
       - QDRANT_URL=http://qdrant:6333
@@ -103,3 +109,7 @@ services:
 volumes:
   qdrant_data:
   ollama_data:
+
+networks:
+  default:
+    name: labopp_network
