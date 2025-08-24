@@ -63,19 +63,7 @@ services:
       - "6334:6334"    # gRPC port
     volumes:
       - qdrant_data:/qdrant/storage
-    environment:
-      - QDRANT__SERVICE__HTTP_PORT=6333
-      - QDRANT__SERVICE__GRPC_PORT=6334
-      - QDRANT__SERVICE__ENABLE_TLS=false
-      - QDRANT__SERVICE__CORS_ALLOW_ORIGINS=["*"]
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:6333/collections"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
-    networks:
-      - labopp_network
+
 
   ollama:
     image: ollama/ollama:latest
@@ -88,14 +76,7 @@ services:
       - OLLAMA_ORIGINS=*
     volumes:
       - ollama_data:/root/.ollama
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:11434/api/tags"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    networks:
-      - labopp_network
+
 
   # ====== RAG SERVICE ======
   rag-service:
@@ -104,6 +85,7 @@ services:
       dockerfile: Dockerfile
     container_name: labopp_rag_service
     restart: always
+
     ports:
       - "3001:3001"    # External access for direct testing
     environment:

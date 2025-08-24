@@ -93,7 +93,7 @@ namespace Business_Logic.Services.Grading
 				// Nếu không còn là Draft thì không cho nộp nữa
 				if (existing.Status != "Draft")
 				{
-					throw new InvalidOperationException("Bài này đã được nộp/đã chấm, không thể nộp lại.");
+					throw new InvalidOperationException("This assignment has already been submitted/graded and cannot be resubmitted.");
 				}
 
 				// Ghi đè Draft cũ
@@ -208,6 +208,7 @@ namespace Business_Logic.Services.Grading
 				Status = (bool)r.IsPassed ? "PASS" : "FAIL",
 				ActualOutput = r.ActualOutput,
 				ExpectedOutput = r.TestCase?.ExpectedOutput ?? "",
+				Description = r.TestCase?.Description ?? "",
 				DurationMs = 0, // không lưu trong DB, chỉ tính runtime nếu muốn
 				ErrorLog = ""
 			}).ToList();
