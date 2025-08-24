@@ -76,11 +76,11 @@ builder.Services.AddScoped<IRedisService, RedisService>();
 
 builder.Services.AddCap(x =>
 {
-    x.UseRedis(builder.Configuration.GetConnectionString("Redis"));
-	// hoặc cấu hình từ appsettings
-	x.UseEntityFramework<LabOopChangeV6Context>(); // dùng bộ nhớ tạm (thay bằng EF nếu có DB)
+	x.UseRedis(builder.Configuration.GetConnectionString("Redis"));
+	x.UseEntityFramework<LabOopChangeV6Context>();
 	x.FailedRetryCount = 5;
 	x.FailedRetryInterval = 10;
+	x.UseDashboard(); // ✅ bật dashboard
 });
 
 
@@ -192,19 +192,23 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<LabOopChangeV6Context>();
-    try
-    {
-        Console.WriteLine("🔍 Checking SQL Server connection...");
-        db.Database.OpenConnection();
-        Console.WriteLine("✅ Connected to SQL Server successfully!");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("🔥 SQL Connection Error:");
-        Console.WriteLine(ex.ToString());
-    }
+	// 🔹 Khởi tạo worker pool để đảm bảo CAP subscriber sẵn sàng ngay từ đầu
+	var pool = scope.ServiceProvider.GetRequiredService<GradingWorkerPool>();
+	Console.WriteLine("✅ GradingWorkerPool initialized at startup");
 
+	// 🔹 Check kết nối DB
+	var db = scope.ServiceProvider.GetRequiredService<LabOopChangeV6Context>();
+	try
+	{
+		Console.WriteLine("🔍 Checking SQL Server connection...");
+		db.Database.OpenConnection();
+		Console.WriteLine("✅ Connected to SQL Server successfully!");
+	}
+	catch (Exception ex)
+	{
+		Console.WriteLine("🔥 SQL Connection Error:");
+		Console.WriteLine(ex.ToString());
+	}
 }
 
 // Configure the HTTP request pipeline.
@@ -230,6 +234,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Đảm bảo CAP khởi tạo GradingWorkerPool để register subscriber
+app.Services.GetRequiredService<GradingWorkerPool>();
+
 
 app.MapHub<NotificationHub>("/notificationHub");
 
