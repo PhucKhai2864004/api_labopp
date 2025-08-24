@@ -19,12 +19,14 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		//private readonly SubmissionGradingWorker _worker;
 		private readonly ICapPublisher _capBus;
 		private readonly LabOopChangeV6Context _context;
+		private readonly ILogger<SubmissionController> _logger;
 
-		public SubmissionController(ISubmissionService submissionService, ICapPublisher capBus, LabOopChangeV6Context context)
+		public SubmissionController(ISubmissionService submissionService, ICapPublisher capBus, LabOopChangeV6Context context, ILogger<SubmissionController> logger)
 		{
 			_submissionService = submissionService;
 			_capBus = capBus;
 			_context = context;
+			_logger = logger;
 		}
 
 		[HttpPost]
@@ -73,6 +75,8 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 				};
 
 				await _capBus.PublishAsync("submission.created", job);
+				_logger.LogInformation("✅ Published submission job {SubmissionId} for Teacher {TeacherId}",
+				job.SubmissionId, job.TeacherId);
 
 				return Ok(ApiResponse<object>.SuccessResponse(
 					new { submissionId },
