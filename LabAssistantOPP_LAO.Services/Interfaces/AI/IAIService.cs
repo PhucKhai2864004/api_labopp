@@ -6,19 +6,19 @@ namespace Business_Logic.Interfaces.AI
     public interface IAIService
     {
         // RAG Service Integration
-        Task<IngestResult> IngestPDFAsync(IFormFile pdfFile, string assignmentId);
-        Task<CodeReviewResult> ReviewCodeAsync(string assignmentId, string studentCode);
-        Task<TestCaseSuggestionResult> SuggestTestCasesAsync(string assignmentId);
+        Task<IngestResult> IngestPDFAsync(IFormFile pdfFile, int assignmentId);
+        Task<CodeReviewResult> ReviewCodeAsync(int assignmentId, string studentCode);
+        Task<TestCaseSuggestionResult> SuggestTestCasesAsync(int assignmentId);
 
         // Legacy Methods (for compatibility)
-        Task<bool> IngestPDFAsync(string assignmentId, IFormFile pdfFile);
-        Task<CodeReviewResult> ReviewStudentSubmissionAsync(string assignmentId, string studentCode);
+        Task<bool> IngestPDFAsync(int assignmentId, IFormFile pdfFile);
+        Task<CodeReviewResult> ReviewStudentSubmissionAsync(int assignmentId, string studentCode);
     }
 
     public class IngestResult
     {
         public bool Success { get; set; }
-        public string AssignmentId { get; set; } = "";
+        public int AssignmentId { get; set; }
         public int Chunks { get; set; }
         public string Source { get; set; } = "";
         public string Status { get; set; } = "";
@@ -29,7 +29,7 @@ namespace Business_Logic.Interfaces.AI
     public class CodeReviewResult
     {
         public bool ReviewAllowed { get; set; }
-        public string AssignmentId { get; set; } = "";
+        public int AssignmentId { get; set; }
         public string Review { get; set; } = "";
         public bool HasErrors { get; set; }
         public int ErrorCount { get; set; }
@@ -41,7 +41,7 @@ namespace Business_Logic.Interfaces.AI
     public class TestCaseSuggestionResult
     {
         public bool Success { get; set; }
-        public string AssignmentId { get; set; } = "";
+        public int AssignmentId { get; set; }
         public List<TestCaseSuggestion> TestCases { get; set; } = new();
         public string Suggestions { get; set; } = "";
         public string Error { get; set; } = "";

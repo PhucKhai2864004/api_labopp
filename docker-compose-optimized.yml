@@ -30,7 +30,7 @@ services:
       # AI Services
       - AIServices__RAGServiceUrl=http://rag-service:3001
       - AIServices__AIServiceUrl=http://localhost:3000
-      - AIServices__GeminiApiKey=AIzaSyDxFNK8N6Y9bkLkNwhoENVhq-gNHH3UrnY
+      - AIServices__GeminiApiKey=${GOOGLE_API_KEY:-AIzaSyDxFNK8N6Y9bkLkNwhoENVhq-gNHH3UrnY}
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock   
@@ -55,7 +55,7 @@ services:
 
   # ====== RAG INFRASTRUCTURE ======
   qdrant:
-    image: qdrant/qdrant:latest
+    image: qdrant/qdrant:1.9.0
     container_name: labopp_qdrant
     restart: always
     ports:
@@ -63,20 +63,32 @@ services:
       - "6334:6334"    # gRPC port
     volumes:
       - qdrant_data:/qdrant/storage
-
-
-  ollama:
-    image: ollama/ollama:latest
-    container_name: labopp_ollama
-    restart: always
-    ports:
-      - "11434:11434"  # External access for model management
     environment:
-      - OLLAMA_HOST=0.0.0.0
-      - OLLAMA_ORIGINS=*
-    volumes:
-      - ollama_data:/root/.ollama
-
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+      - QDRANT__SERVICE__ENABLE_TLS=false
+      - QDRANT__SERVICE__CORS_ALLOW_ORIGINS=["*"]
+      # Performance optimizations
+      - QDRANT__SERVICE__ENABLE_TLS=false
+      - QDRANT__STORAGE__STORAGE_PATH=/qdrant/storage
+      - QDRANT__STORAGE__PERFORMANCE__MAX_SEARCH_THREADS=4
+      - QDRANT__STORAGE__PERFORMANCE__MAX_INDEXING_THREADS=4
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:6333/collections"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - labopp_network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
 
   # ====== RAG SERVICE ======
   rag-service:
@@ -85,7 +97,6 @@ services:
       dockerfile: Dockerfile
     container_name: labopp_rag_service
     restart: always
-
     ports:
       - "3001:3001"    # External access for direct testing
     environment:
@@ -95,12 +106,15 @@ services:
       
       # Service URLs
       - QDRANT_URL=http://qdrant:6333
-      - OLLAMA_URL=http://ollama:11434
       
       # Google Gemini Configuration
       - GOOGLE_API_KEY=${GOOGLE_API_KEY:-AIzaSyDxFNK8N6Y9bkLkNwhoENVhq-gNHH3UrnY}
-      - GENAI_MODEL=${GENAI_MODEL:-gemini-1.5-flash-latest}
+      - GENAI_MODEL=${GENAI_MODEL:-gemini-1.5-pro-002}
       - GENAI_BASE=https://generativelanguage.googleapis.com
+      
+      # Embeddings Configuration
+      - EMBEDDINGS_PROVIDER=${EMBEDDINGS_PROVIDER:-gemini}
+      - EMBEDDINGS_MODEL=${EMBEDDINGS_MODEL:-text-embedding-004}
       
       # Service Configuration
       - PORT=3001
@@ -122,15 +136,13 @@ services:
       - rag_uploads:/app/uploads
       - rag_logs:/app/logs
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3001/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
       start_period: 30s
     depends_on:
       qdrant:
-        condition: service_healthy
-      ollama:
         condition: service_healthy
     networks:
       - labopp_network
@@ -143,53 +155,13 @@ services:
           memory: 512M
           cpus: '0.5'
 
-  # ====== MONITORING (Optional) ======
-  # Uncomment if you want monitoring
-  # prometheus:
-  #   image: prom/prometheus:latest
-  #   container_name: labopp_prometheus
-  #   restart: always
-  #   ports:
-  #     - "9090:9090"
-  #   volumes:
-  #     - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-  #     - prometheus_data:/prometheus
-  #   command:
-  #     - '--config.file=/etc/prometheus/prometheus.yml'
-  #     - '--storage.tsdb.path=/prometheus'
-  #     - '--web.console.libraries=/etc/prometheus/console_libraries'
-  #     - '--web.console.templates=/etc/prometheus/consoles'
-  #     - '--storage.tsdb.retention.time=200h'
-  #     - '--web.enable-lifecycle'
-  #   networks:
-  #     - labopp_network
-
-  # grafana:
-  #   image: grafana/grafana:latest
-  #   container_name: labopp_grafana
-  #   restart: always
-  #   ports:
-  #     - "3000:3000"
-  #   environment:
-  #     - GF_SECURITY_ADMIN_PASSWORD=admin123
-  #   volumes:
-  #     - grafana_data:/var/lib/grafana
-  #   networks:
-  #     - labopp_network
-
 volumes:
   qdrant_data:
-    driver: local
-  ollama_data:
     driver: local
   rag_uploads:
     driver: local
   rag_logs:
     driver: local
-  # prometheus_data:
-  #   driver: local
-  # grafana_data:
-  #   driver: local
 
 networks:
   labopp_network:
