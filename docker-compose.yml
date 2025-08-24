@@ -56,11 +56,7 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:6333/collections"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+    healthcheck: null
 
   ollama:
     image: ollama/ollama:latest
@@ -71,11 +67,7 @@ services:
       - OLLAMA_HOST=0.0.0.0
     volumes:
       - ollama_data:/root/.ollama
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:11434/api/tags"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+    healthcheck: null
 
   rag-service:
     build:
@@ -83,10 +75,8 @@ services:
       dockerfile: Dockerfile
     restart: always
     depends_on:
-      qdrant:
-        condition: service_healthy
-      ollama:
-        condition: service_healthy
+      - qdrant   
+      - ollama
     ports:
       - "3002:3001"    # bỏ nếu chỉ gọi nội bộ từ webapi
     environment:
