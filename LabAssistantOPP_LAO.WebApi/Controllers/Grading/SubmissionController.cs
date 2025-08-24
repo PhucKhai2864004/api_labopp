@@ -30,7 +30,23 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		[HttpPost]
 		public async Task<IActionResult> Submit([FromForm] SubmitCodeDto dto)
 		{
-			var submissionId = await _submissionService.SaveSubmissionAsync(dto);
+			int submissionId;
+
+			try
+			{
+				submissionId = await _submissionService.SaveSubmissionAsync(dto);
+			}
+			catch (InvalidOperationException ex)
+			{
+				// Nếu bài đã nộp, trả về 400 hoặc 409 với message
+				return BadRequest(ApiResponse<object>.ErrorResponse(ex.Message));
+				// Hoặc: return Conflict(ApiResponse<object>.ErrorResponse(ex.Message));
+			}
+			catch (Exception ex)
+			{
+				// Các lỗi khác
+				return StatusCode(500, ApiResponse<object>.ErrorResponse("Server error: " + ex.Message));
+			}
 
 			var submission = await _submissionService.GetSubmissionAsync(submissionId);
 			if (submission == null)

@@ -208,6 +208,7 @@ namespace Business_Logic.Services.Grading
 				Status = (bool)r.IsPassed ? "PASS" : "FAIL",
 				ActualOutput = r.ActualOutput,
 				ExpectedOutput = r.TestCase?.ExpectedOutput ?? "",
+				Description = r.TestCase?.Description ?? "",
 				DurationMs = 0, // không lưu trong DB, chỉ tính runtime nếu muốn
 				ErrorLog = ""
 			}).ToList();
