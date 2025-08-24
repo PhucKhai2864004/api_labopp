@@ -201,7 +201,7 @@ app.post('/ingest', upload.single('pdfFile'), async (req, res) => {
             debugLog(`Generating embedding for chunk ${i + 1}/${chunks.length}`, { chunkLength: chunk.length });
             
             // Call Ollama for embedding
-            const embeddingResponse = await fetch('http://localhost:11434/api/embeddings', {
+            const embeddingResponse = await fetch('http://ollama:11434/api/embeddings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -340,7 +340,7 @@ async function similaritySearch(query, assignmentId, limit = 5) {
         debugLog('Starting similarity search', { query: query.substring(0, 100) + '...', assignmentId, limit });
         
         // Generate embedding for query
-        const embeddingResponse = await fetch('http://localhost:11434/api/embeddings', {
+        const embeddingResponse = await fetch('http://ollama:11434/api/embeddings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -435,7 +435,7 @@ Format your response as JSON with the following structure:
 
         // Call Ollama for code review
         debugLog('Calling Ollama for code review', { assignmentId, promptLength: prompt.length });
-        const llmResponse = await fetch('http://localhost:11434/api/generate', {
+        const llmResponse = await fetch('http://ollama:11434/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
