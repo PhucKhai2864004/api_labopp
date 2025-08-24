@@ -46,25 +46,28 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
 					_context.LabAssignments,
 					assignmentId => assignmentId,
 					assignment => assignment.Id,
-					(assignmentId, assignment) => new
-					{
-						assignment.Id,
-						assignment.Title,
-						assignment.Description,
-						assignment.LocTotal,
-						assignment.CreatedAt
-					}
+					(assignmentId, assignment) => assignment
 				)
+				.Where(a => a.Status == "Active")   // ✅ chỉ lấy bài lab đã duyệt
+				.Select(a => new
+				{
+					a.Id,
+					a.Title,
+					a.Description,
+					a.LocTotal,
+					a.CreatedAt
+				})
 				.ToListAsync();
 
 			return Ok(ApiResponse<object>.SuccessResponse(assignments, "Danh sách bài tập của bạn"));
 		}
 
+
 		[HttpGet("{id:int}")]
 		public async Task<IActionResult> GetAssignmentDetail(int id)
 		{
 			var assignment = await _context.LabAssignments
-				.Where(a => a.Id == id)
+				.Where(a => a.Id == id && a.Status == "Active")  // ✅ chỉ cho xem lab active
 				.Select(a => new AssignmentDetailDto
 				{
 					Title = a.Title,
@@ -75,11 +78,12 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
 
 			if (assignment == null)
 			{
-				return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy bài lab."));
+				return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy bài lab hoặc chưa được duyệt."));
 			}
 
 			return Ok(ApiResponse<AssignmentDetailDto>.SuccessResponse(assignment, "Lấy chi tiết bài lab thành công"));
 		}
+
 
 		[HttpPost("student-lab-assignment")]
 		public async Task<IActionResult> AssignLabToStudent([FromBody] StudentLabAssignmentDto dto)
