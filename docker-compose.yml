@@ -46,3 +46,60 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./worker_temp:/app/worker_temp
       - ./submissions:/app/submissions
+
+  # ====== THÊM RAG  ======
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: always
+    ports:
+      - "6333:6333"    # có thể bỏ nếu chỉ dùng nội bộ
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:6333/collections"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: always
+    ports:
+      - "11434:11434"  # có thể bỏ nếu chỉ dùng nội bộ
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rag-service:
+    build:
+      context: ./rag-cli-nodejs
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    ports:
+      - "3002:3001"    # bỏ nếu chỉ gọi nội bộ từ webapi
+    environment:
+      - NODE_ENV=production
+      - QDRANT_URL=http://qdrant:6333
+      - OLLAMA_URL=http://ollama:11434
+      # (tuỳ chọn) Gemini nếu dùng:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GENAI_MODEL=${GENAI_MODEL:-gemini-1.5-flash-latest}
+      - GENAI_BASE=https://generativelanguage.googleapis.com
+    volumes:
+      - ./rag-cli-nodejs/uploads:/app/uploads
+
+volumes:
+  qdrant_data:
+  ollama_data:

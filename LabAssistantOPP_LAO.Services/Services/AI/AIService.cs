@@ -1,0 +1,379 @@
+using LabAssistantOPP_LAO.Models.Entities;
+using Microsoft.AspNetCore.Http;
+using System.Text;
+using System.Text.Json;
+using System.IO.Compression;
+using System.Text.RegularExpressions;
+using System.Linq;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
+using LabAssistantOPP_LAO.Models.Data;
+using Microsoft.EntityFrameworkCore;
+using Business_Logic.Interfaces.AI;
+
+namespace Business_Logic.Services.AI
+{
+    public class AIService : IAIService
+    {
+        private readonly HttpClient _httpClient;
+        private readonly ILogger<AIService> _logger;
+        private readonly string _ragServiceUrl;
+        private readonly string _aiServiceUrl;
+        private readonly string _geminiApiKey;
+
+        public AIService(
+            HttpClient httpClient,
+            IConfiguration configuration,
+            ILogger<AIService> logger)
+        {
+            _httpClient = httpClient;
+            _logger = logger;
+            _ragServiceUrl = configuration["AIServices:RAGServiceUrl"] ?? "http://localhost:3001";
+            _aiServiceUrl = configuration["AIServices:AIServiceUrl"] ?? "http://localhost:3000";
+            _geminiApiKey = configuration["AIServices:GeminiApiKey"] ?? "AIzaSyDxFNK8N6Y9bkLkNwhoENVhq-gNHH3UrnY";
+        }
+
+        #region RAG Service Integration
+
+        public async Task<IngestResult> IngestPDFAsync(IFormFile pdfFile, string assignmentId)
+        {
+            try
+            {
+                _logger.LogInformation($"Ingesting PDF for assignment {assignmentId}");
+
+                using var formData = new MultipartFormDataContent();
+                using var fileStream = pdfFile.OpenReadStream();
+                using var streamContent = new StreamContent(fileStream);
+
+                formData.Add(new StringContent(assignmentId), "assignmentId");
+                formData.Add(streamContent, "pdfFile", pdfFile.FileName);
+
+                var response = await _httpClient.PostAsync($"{_ragServiceUrl}/ingest", formData);
+
+                var responseString = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation($"RAG ingest response: {responseString}");
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError($"Failed to ingest PDF: {response.StatusCode} - {responseString}");
+                    return new IngestResult 
+                    { 
+                        Success = false, 
+                        Error = $"Failed to ingest PDF: {response.StatusCode}",
+                        RawResponse = responseString // Luôn trả về raw để debug
+                    };
+                }
+
+                // Parse JSON response
+                try
+                {
+                    var ragResponse = JsonSerializer.Deserialize<JsonElement>(responseString);
+
+                    var ingestResult = new IngestResult
+                    {
+                        Success = true,
+                        AssignmentId = assignmentId,
+                        Chunks = 0,
+                        Source = "pdf",
+                        RawResponse = responseString
+                    };
+
+                    // Extract thông tin từ response
+                    if (ragResponse.TryGetProperty("assignmentId", out var idElement))
+                    {
+                        ingestResult.AssignmentId = idElement.GetString() ?? assignmentId;
+                    }
+
+                    if (ragResponse.TryGetProperty("chunks", out var chunksElement))
+                    {
+                        ingestResult.Chunks = chunksElement.GetInt32();
+                    }
+
+                    if (ragResponse.TryGetProperty("status", out var statusElement))
+                    {
+                        var status = statusElement.GetString();
+                        if (status == "alreadyExists")
+                        {
+                            ingestResult.Status = "Already exists";
+                        }
+                        else if (status == "success")
+                        {
+                            ingestResult.Status = "Success";
+                        }
+                    }
+
+                    _logger.LogInformation($"✅ Successfully ingested PDF for assignment {assignmentId}");
+                    return ingestResult;
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogError(ex, $"Failed to parse RAG response JSON: {responseString}");
+                    return new IngestResult
+                    {
+                        Success = true,
+                        AssignmentId = assignmentId,
+                        RawResponse = responseString,
+                        Status = "Success (raw response)"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error ingesting PDF for assignment {assignmentId}");
+                return new IngestResult { Success = false, Error = ex.Message };
+            }
+        }
+
+        public async Task<TestCaseSuggestionResult> SuggestTestCasesAsync(string assignmentId)
+        {
+            try
+            {
+                _logger.LogInformation($"Suggesting test cases for assignment {assignmentId}");
+
+                // Kiểm tra xem assignment có RAG data không
+                var hasRAGData = await CheckAssignmentHasRAGDataAsync(assignmentId);
+                if (!hasRAGData)
+                {
+                    _logger.LogWarning($"No RAG data found for assignment {assignmentId}");
+                    return new TestCaseSuggestionResult
+                    {
+                        Success = false,
+                        Error = "No RAG context available for this assignment. Please ingest PDF first."
+                    };
+                }
+
+                // Gọi RAG service để suggest test cases (chỉ cần assignmentId)
+                var suggestionRequest = new
+                {
+                    assignmentId
+                };
+
+                var jsonContent = JsonSerializer.Serialize(suggestionRequest);
+                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync($"{_ragServiceUrl}/suggest-testcases", content);
+                var responseString = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation($"RAG test case suggestion response: {responseString}");
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError($"Failed to suggest test cases: {response.StatusCode} - {responseString}");
+                    return new TestCaseSuggestionResult
+                    {
+                        Success = false,
+                        Error = $"Test case suggestion failed: {response.StatusCode} - {responseString}"
+                    };
+                }
+
+                // Parse suggestion response
+                try
+                {
+                    var suggestionResponse = JsonSerializer.Deserialize<JsonElement>(responseString);
+
+                    var suggestionResult = new TestCaseSuggestionResult
+                    {
+                        Success = true,
+                        AssignmentId = assignmentId,
+                        RawResponse = responseString
+                    };
+
+                    // Extract test cases
+                    if (suggestionResponse.TryGetProperty("testCases", out var testCasesElement))
+                    {
+                        var testCases = JsonSerializer.Deserialize<List<TestCaseSuggestion>>(testCasesElement.GetRawText());
+                        suggestionResult.TestCases = testCases ?? new List<TestCaseSuggestion>();
+                    }
+
+                    // Extract suggestions
+                    if (suggestionResponse.TryGetProperty("suggestions", out var suggestionsElement))
+                    {
+                        suggestionResult.Suggestions = suggestionsElement.GetString() ?? "";
+                    }
+
+                    _logger.LogInformation($"✅ Successfully suggested test cases for assignment {assignmentId}");
+                    return suggestionResult;
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogError(ex, $"Failed to parse test case suggestion response JSON: {responseString}");
+                    return new TestCaseSuggestionResult
+                    {
+                        Success = true,
+                        AssignmentId = assignmentId,
+                        TestCases = new List<TestCaseSuggestion>(),
+                        Suggestions = "Raw response: " + responseString,
+                        RawResponse = responseString
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error suggesting test cases for assignment {assignmentId}");
+                return new TestCaseSuggestionResult
+                {
+                    Success = false,
+                    Error = $"Internal error: {ex.Message}"
+                };
+            }
+        }
+
+        public async Task<CodeReviewResult> ReviewCodeAsync(string assignmentId, string studentCode)
+        {
+            try
+            {
+                _logger.LogInformation($"Reviewing code for assignment {assignmentId}, student code length: {studentCode?.Length ?? 0}");
+
+                // Gọi RAG service để review code
+                var reviewRequest = new
+                {
+                    assignmentId,
+                    studentCode
+                };
+
+                var jsonContent = JsonSerializer.Serialize(reviewRequest);
+                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync($"{_ragServiceUrl}/review-code", content);
+                var responseString = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation($"RAG review response: {responseString}");
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError($"Failed to review code: {response.StatusCode} - {responseString}");
+                    return new CodeReviewResult
+                    {
+                        ReviewAllowed = false,
+                        Error = $"Review failed: {response.StatusCode} - {responseString}"
+                    };
+                }
+
+                // Parse review response
+                try
+                {
+                    var reviewResponse = JsonSerializer.Deserialize<JsonElement>(responseString);
+
+                    var reviewResult = new CodeReviewResult
+                    {
+                        ReviewAllowed = true,
+                        AssignmentId = assignmentId,
+                        RawResponse = responseString
+                    };
+
+                    // Extract review data
+                    if (reviewResponse.TryGetProperty("review", out var reviewElement))
+                    {
+                        reviewResult.Review = reviewElement.GetString() ?? "";
+                    }
+
+                    if (reviewResponse.TryGetProperty("hasErrors", out var hasErrorsElement))
+                    {
+                        reviewResult.HasErrors = hasErrorsElement.GetBoolean();
+                    }
+
+                    if (reviewResponse.TryGetProperty("errorCount", out var errorCountElement))
+                    {
+                        reviewResult.ErrorCount = errorCountElement.GetInt32();
+                    }
+
+                    if (reviewResponse.TryGetProperty("summary", out var summaryElement))
+                    {
+                        reviewResult.Summary = summaryElement.GetString();
+                    }
+
+                    _logger.LogInformation($"✅ Successfully reviewed code for assignment {assignmentId}");
+                    return reviewResult;
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogError(ex, $"Failed to parse review response JSON: {responseString}");
+                    return new CodeReviewResult
+                    {
+                        ReviewAllowed = true,
+                        AssignmentId = assignmentId,
+                        Review = responseString,
+                        RawResponse = responseString
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error reviewing code for assignment {assignmentId}");
+                return new CodeReviewResult
+                {
+                    ReviewAllowed = false,
+                    Error = ex.Message
+                };
+            }
+        }
+
+        private async Task<bool> CheckAssignmentHasRAGDataAsync(string assignmentId)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"{_ragServiceUrl}/check-assignment/{assignmentId}");
+                var responseString = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var checkResponse = JsonSerializer.Deserialize<JsonElement>(responseString);
+                    if (checkResponse.TryGetProperty("exists", out var existsElement))
+                    {
+                        return existsElement.GetBoolean();
+                    }
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error checking RAG data for assignment {assignmentId}");
+                return false;
+            }
+        }
+
+        private async Task<string> GetAssignmentContextAsync(string assignmentId)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"{_ragServiceUrl}/assignment-info/{assignmentId}");
+                var responseString = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var infoResponse = JsonSerializer.Deserialize<JsonElement>(responseString);
+                    if (infoResponse.TryGetProperty("context", out var contextElement))
+                    {
+                        return contextElement.GetString() ?? "";
+                    }
+                }
+
+                return "";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting assignment context for {assignmentId}");
+                return "";
+            }
+        }
+
+        #endregion
+
+        #region Legacy Methods (for compatibility)
+
+        public async Task<bool> IngestPDFAsync(string assignmentId, IFormFile pdfFile)
+        {
+            var result = await IngestPDFAsync(pdfFile, assignmentId);
+            return result.Success;
+        }
+
+        public async Task<CodeReviewResult> ReviewStudentSubmissionAsync(string assignmentId, string studentCode)
+        {
+            return await ReviewCodeAsync(assignmentId, studentCode);
+        }
+
+        #endregion
+    }
+}
+
