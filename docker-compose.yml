@@ -1,6 +1,15 @@
 version: '3.9'
 
 services:
+  redis:
+    image: redis:7
+    container_name: labopp_redis
+    restart: always
+    command: redis-server --requirepass Manheno1
+    ports:
+      - "6379:6379"
+    networks: [labopp_network]
+
   webapi:
     build:
       context: .
@@ -12,7 +21,7 @@ services:
     environment:
       # Database & Redis
       - ConnectionStrings__DB=Server=172.17.0.1,1433;Database=LabOopChange_v6;User Id=sa;Password=Manheno1;Encrypt=False;TrustServerCertificate=True;
-      - ConnectionStrings__Redis=188.166.212.41:6379,password=Manheno1
+      - ConnectionStrings__Redis=redis:6379,password=Manheno1
 
       # JWT
       - JwtSettings__Secret=THIS_IS_SUPER_SECRET_KEY_1234567890
