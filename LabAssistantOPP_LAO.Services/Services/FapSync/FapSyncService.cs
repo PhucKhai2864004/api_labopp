@@ -58,7 +58,7 @@ namespace Business_Logic.Services.FapSync
 							SubjectCode = fapCls.SubjectCode,
 							AcademicYear = fapCls.AcademicYear,
 							LocToPass = 750,
-							TeacherId = 2, // default teacher/admin
+							TeacherId = fapCls.TeacherId, // default teacher/admin
 							IsActive = true,
 							CreatedAt = DateTime.UtcNow
 						};
@@ -68,7 +68,7 @@ namespace Business_Logic.Services.FapSync
 					cls.SubjectCode = fapCls.SubjectCode;
 					cls.AcademicYear = fapCls.AcademicYear;
 					cls.LocToPass = 750;
-					cls.TeacherId = 2; // default teacher/admin
+					cls.TeacherId = fapCls.TeacherId; // default teacher/admin
 					cls.IsActive = true;
 
 					await _context.SaveChangesAsync();
