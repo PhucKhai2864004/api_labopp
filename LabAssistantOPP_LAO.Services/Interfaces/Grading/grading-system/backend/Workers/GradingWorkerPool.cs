@@ -171,7 +171,7 @@ namespace Business_Logic.Interfaces.Workers.Grading
 			await redis.KeyExpireAsync(string.Format(KeyWorkers, teacherId), RedisTtl);
 		}
 
-		[CapSubscribe("submission.created")]
+		[CapSubscribe("submission.created", Group = "grading-worker")]
 		public async Task EnqueueJob(SubmissionJob job)
 		{
 			var running = await IsRunningAsync(job.TeacherId);
