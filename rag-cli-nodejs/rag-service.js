@@ -35,6 +35,11 @@ function debugLog(message, data = null) {
     }
 }
 
+// Resolve Gemini API key from environment
+function getGeminiApiKey() {
+    return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+}
+
 // Initialize PDF extractor
 const pdfExtract = new PDFExtract();
 const options = {};
@@ -406,7 +411,7 @@ app.post('/review-code', async (req, res) => {
         const context = await similaritySearch('code review', assignmentId, 3);
         const contextText = context.map(c => c.text).join('\n\n');
 
-        // Prepare prompt for code review
+        // Prepare prompt for code review (request strict JSON)
         const prompt = `You are an expert programming instructor reviewing student code.
 
 Assignment Context:
@@ -425,51 +430,54 @@ Please provide a comprehensive code review including:
 4. Best practices suggestions
 5. Any errors or issues found
 
-Format your response as JSON with the following structure:
+Please respond with ONLY a valid JSON object (no markdown, no code fences) using this structure:
 {
   "review": "detailed review text",
   "hasErrors": true/false,
   "errorCount": number,
   "summary": "brief summary"
 }`;
+        
+        // Call Gemini for code review (align with suggest-testcases)
+        const geminiApiKey = getGeminiApiKey();
+        if (!geminiApiKey) {
+            debugLog('Missing Gemini API key for review-code');
+            return res.status(500).json({ success: false, error: 'Missing Gemini API key' });
+        }
 
-        // Call Ollama for code review
+        const geminiModel = process.env.GENAI_MODEL_REVIEW || process.env.GENAI_MODEL || 'gemini-2.5-flash';
+        const geminiBase = process.env.GENAI_BASE || 'https://generativelanguage.googleapis.com';
 
-        debugLog('Calling Ollama for code review', { assignmentId, promptLength: prompt.length });
-        const llmResponse = await fetch('http://ollama:11434/api/generate', {
-
+        debugLog('Calling Gemini for code review', { assignmentId, model: geminiModel, promptLength: prompt.length });
+        const geminiResponse = await fetch(`${geminiBase}/v1/models/${geminiModel}:generateContent?key=${geminiApiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                model: 'llama3.2:3b',
-                prompt: prompt,
-                stream: false
+                contents: [{ parts: [{ text: prompt }] }]
             })
         });
 
-        if (!llmResponse.ok) {
-            const errorText = await llmResponse.text();
-            debugLog('Ollama code review failed', { status: llmResponse.status, error: errorText });
-            throw new Error('Failed to generate code review');
+        if (!geminiResponse.ok) {
+            const errorText = await geminiResponse.text();
+            debugLog('Gemini code review failed', { status: geminiResponse.status, error: errorText });
+            throw new Error(`Gemini API request failed: ${geminiResponse.status}`);
         }
 
-        const llmData = await llmResponse.json();
-        debugLog('Ollama code review response received', { responseLength: llmData.response?.length });
-        
-        let reviewResult;
+        const geminiData = await geminiResponse.json();
+        const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        debugLog('Gemini code review response received', { responseLength: responseText?.length });
 
+        let reviewResult;
         try {
-            // Try to parse JSON response
-            reviewResult = JSON.parse(llmData.response);
+            reviewResult = JSON.parse(responseText);
             debugLog('Code review JSON parsed successfully', { hasErrors: reviewResult.hasErrors, errorCount: reviewResult.errorCount });
         } catch (parseError) {
-            // If JSON parsing fails, create a structured response
             debugLog('Code review JSON parsing failed, using fallback', { parseError: parseError.message });
             reviewResult = {
-                review: llmData.response,
+                review: responseText,
                 hasErrors: false,
                 errorCount: 0,
-                summary: "AI review completed"
+                summary: 'AI review completed'
             };
         }
 
@@ -483,7 +491,7 @@ Format your response as JSON with the following structure:
             hasErrors: reviewResult.hasErrors,
             errorCount: reviewResult.errorCount,
             summary: reviewResult.summary,
-            rawResponse: llmData.response
+            rawResponse: responseText
         });
 
     } catch (error) {
