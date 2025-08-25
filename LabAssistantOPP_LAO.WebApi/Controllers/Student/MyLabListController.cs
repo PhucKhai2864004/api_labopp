@@ -32,13 +32,16 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
 				{
 					sla.Id,
 					sla.AssignmentId,
+					AssignmentName = sla.Assignment.Title, // ✅ Lấy tên bài lab
 					sla.SemesterId,
 					sla.Status,
 					sla.SubmittedAt
-				}).ToListAsync();
+				})
+				.ToListAsync();
 
 			return Ok(ApiResponse<object>.SuccessResponse(myLabs, "Danh sách bài đang làm của bạn"));
 		}
+
 
 		// POST: Thêm bài vào danh sách
 		[HttpPost("{assignmentId:int}")]
