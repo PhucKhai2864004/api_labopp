@@ -556,7 +556,7 @@ Notes:
 // Suggest test cases for assignment
 app.post('/suggest-testcases', async (req, res) => {
     try {
-        const { assignmentId } = req.body;
+        const { assignmentId, outputStyle, style, hints } = req.body;
 
         debugLog('Test case suggestion request received', { assignmentId });
 
@@ -585,43 +585,46 @@ app.post('/suggest-testcases', async (req, res) => {
         const context = await similaritySearch('test case generation', assignmentId, 5);
         const contextText = context.map(c => c.text).join('\n\n');
 
+        // Auto-detect style from RAG context
+        const detectedStyle = detectAssignmentStyle(contextText);
+        const effectiveStyle = (style || outputStyle || detectedStyle || 'default').toString();
+
+        debugLog('Style detection', { 
+            detectedStyle, 
+            userStyle: style || outputStyle, 
+            effectiveStyle,
+            contextPreview: contextText.substring(0, 200) + '...'
+        });
+
         // Prepare prompt for test case generation
-        const prompt = `You are an expert programming instructor helping students create test cases.
+        const baseIntro = `You are an expert programming instructor helping students create test cases.`;
+
+        const styles = {
+            terminal_menu: `\nFocus on terminal menu interactions for management systems. Each test case must include step-by-step inputs a student performs in a console app.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "title": string,\n      "steps": [string],\n      "expectedOutput": string\n    }\n  ],\n  "suggestions": string\n}`,
+                         algorithm_io: `\nThis is a basic algorithmic problem (Fibonacci, matrix operations, BMI calculation, arithmetic, date comparison, math calculations). Provide concise input/output cases.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "input": string,\n      "expectedOutput": string\n    }\n  ],\n  "suggestions": string\n}`,
+            sorting_array: `\nThis is a sorting problem (Bubble Sort, Selection Sort, etc.). Include edge cases: empty array, single element, already sorted, reverse sorted, duplicates.\nUse array literals as strings for input and expectedOutput (e.g., "[3,1,2]").\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "input": string,\n      "expectedOutput": string\n    }\n  ],\n  "suggestions": string\n}`,
+            string_ops: `\nThis is a string processing problem. Cover empty string, whitespace, case sensitivity, special characters.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema as algorithm_io.`,
+            data_structure: `\nThis is a data structure problem (Stack, Queue, simple structures). Test basic operations: push/pop, enqueue/dequeue, insert/delete.\nInclude edge cases: empty structure, single element.\nSchema as algorithm_io.`,
+            unit_api: `\nProduce unit-test-like cases.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "name": string,\n      "pre": string,\n      "input": string,\n      "expectedOutput": string\n    }\n  ],\n  "suggestions": string\n}`,
+            default: `\nBased on the assignment requirements, suggest 5-10 test cases that would help verify the solution.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema as algorithm_io.`
+        };
+
+        const styleBlock = styles[effectiveStyle] || styles.default;
+
+        const prompt = `${baseIntro}
 
 Assignment Context:
 ${contextText}
 
-Based on the assignment requirements, suggest 5-10 test cases that would help verify the solution.
+Detected Style: ${detectedStyle}
+Effective Style: ${effectiveStyle}
+${styleBlock}
+${hints ? `\nConstraints/Hints (as plain text for guidance): ${JSON.stringify(hints)}` : ''}
 
-For each test case, provide:
-1. Input values (consider normal cases, edge cases, and boundary conditions)
-2. Expected output
-
-IMPORTANT: Respond with ONLY valid JSON, no markdown formatting, no code blocks.
-
-Format your response as JSON with the following structure:
-{
-  "testCases": [
-    {
-      "input": "simple input description",
-      "expectedOutput": "expected result description"
-    }
-  ],
-  "suggestions": "general testing advice and tips"
-}
-
-Focus on:
-- Edge cases (empty input, null values, maximum values)
-- Boundary conditions (minimum/maximum valid inputs)
-- Normal cases (typical expected inputs)
-- Error conditions (invalid inputs if applicable)
-
-Keep input and expectedOutput as simple text descriptions, not complex objects.
-
-Remember: Return ONLY the JSON object, no markdown, no code blocks.`;
+General guidance:\n- Cover edge cases, boundary conditions, normal and error cases.\n- Keep fields as simple text.\n- No extra commentary, return the JSON object only.`;
 
         // Call Gemini API for test case generation
-        const geminiApiKey = process.env.GEMINI_API_KEY || 'AIzaSyDxFNK8N6Y9bkLkNwhoENVhq-gNHH3UrnY';
+        const geminiApiKey = getGeminiApiKey();
         const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -666,14 +669,28 @@ Remember: Return ONLY the JSON object, no markdown, no code blocks.`;
             }
         }
 
-        // Validate schema
-        if (!validateTestCases(parsed)) {
-            debugLog('Test case validation failed', { parsed });
-            return res.status(502).json({ 
-                success: false, 
-                error: 'Invalid test case schema',
-                rawResponse: responseText
-            });
+        // Validate schema depending on style
+        if (effectiveStyle === 'terminal_menu') {
+            const ok = Array.isArray(parsed?.testCases) && parsed.testCases.every(tc =>
+                tc && typeof tc.title === 'string' && Array.isArray(tc.steps) && typeof tc.expectedOutput === 'string'
+            );
+            if (!ok) {
+                debugLog('Test case validation failed (terminal_menu)', { parsed });
+                return res.status(502).json({ success: false, error: 'Invalid test case schema (terminal_menu)', rawResponse: responseText });
+            }
+        } else if (effectiveStyle === 'unit_api') {
+            const ok = Array.isArray(parsed?.testCases) && parsed.testCases.every(tc =>
+                tc && typeof tc.name === 'string' && typeof tc.pre === 'string' && typeof tc.input === 'string' && typeof tc.expectedOutput === 'string'
+            );
+            if (!ok) {
+                debugLog('Test case validation failed (unit_api)', { parsed });
+                return res.status(502).json({ success: false, error: 'Invalid test case schema (unit_api)', rawResponse: responseText });
+            }
+        } else {
+            if (!validateTestCases(parsed)) {
+                debugLog('Test case validation failed', { parsed });
+                return res.status(502).json({ success: false, error: 'Invalid test case schema', rawResponse: responseText });
+            }
         }
 
         debugLog('Test case validation successful', { testCasesCount: parsed.testCases?.length || 0 });
@@ -681,6 +698,8 @@ Remember: Return ONLY the JSON object, no markdown, no code blocks.`;
         res.json({
             success: true,
             assignmentId: assignmentId,
+            detectedStyle: detectedStyle,
+            effectiveStyle: effectiveStyle,
             testCases: parsed.testCases || [],
             suggestions: parsed.suggestions || "",
             rawResponse: responseText
@@ -783,6 +802,79 @@ function validateTestCases(data) {
     }
     
     return true;
+}
+
+// Auto-detect assignment style from RAG context - Simplified for Java school assignments
+function detectAssignmentStyle(contextText) {
+    const text = contextText.toLowerCase();
+    
+    // Score-based detection system for common Java school assignments
+    const scores = {
+        terminal_menu: 0,      // Quản lý nhân viên, fruitshop, etc.
+        sorting_array: 0,      // Bubble sort, selection sort, etc.
+        algorithm_io: 0,       // Fibonacci, date comparison, etc.
+        data_structure: 0,     // Stack, Queue, simple structures
+        string_ops: 0          // String manipulation
+    };
+    
+    // Terminal Menu & Management (most common in Java courses)
+    const menuPatterns = ['menu', 'option', 'display', 'console', 'interactive'];
+    const crudPatterns = ['add', 'update', 'delete', 'create', 'modify', 'remove'];
+    const managementPatterns = ['management', 'employee', 'worker', 'student', 'customer', 'product', 'fruit', 'shop', 'store'];
+    const dataStoragePatterns = ['hashmap', 'arraylist', 'linkedlist', 'array'];
+    
+    if (menuPatterns.some(p => text.includes(p))) scores.terminal_menu += 2;
+    if (crudPatterns.filter(p => text.includes(p)).length >= 2) scores.terminal_menu += 3;
+    if (managementPatterns.some(p => text.includes(p))) scores.terminal_menu += 3;
+    if (dataStoragePatterns.some(p => text.includes(p))) scores.terminal_menu += 1;
+    
+    // Sorting Algorithms (very common)
+    const sortingPatterns = ['sort', 'bubble', 'insertion', 'selection', 'quick', 'merge'];
+    const orderPatterns = ['ascending', 'descending', 'order', 'arrange'];
+    
+    if (sortingPatterns.some(p => text.includes(p))) scores.sorting_array += 4;
+    if (orderPatterns.some(p => text.includes(p))) scores.sorting_array += 2;
+    
+         // Basic Algorithms (Fibonacci, date comparison, matrix, BMI, arithmetic, etc.)
+     const algorithmPatterns = ['fibonacci', 'factorial', 'gcd', 'lcm', 'prime', 'palindrome'];
+     const datePatterns = ['date', 'time', 'compare', 'day', 'month', 'year'];
+     const mathPatterns = ['calculate', 'compute', 'sum', 'average', 'maximum', 'minimum'];
+     const matrixPatterns = ['matrix', 'array', '2d', 'two dimensional', 'row', 'column'];
+     const bmiPatterns = ['bmi', 'body mass index', 'weight', 'height', 'kg', 'm'];
+     const arithmeticPatterns = ['add', 'subtract', 'multiply', 'divide', 'plus', 'minus', 'times', 'division', 'addition', 'subtraction', 'multiplication'];
+     
+     if (algorithmPatterns.some(p => text.includes(p))) scores.algorithm_io += 3;
+     if (datePatterns.some(p => text.includes(p))) scores.algorithm_io += 3;
+     if (mathPatterns.some(p => text.includes(p))) scores.algorithm_io += 2;
+     if (matrixPatterns.some(p => text.includes(p))) scores.algorithm_io += 3;
+     if (bmiPatterns.some(p => text.includes(p))) scores.algorithm_io += 3;
+     if (arithmeticPatterns.some(p => text.includes(p))) scores.algorithm_io += 2;
+    
+    // Simple Data Structures
+    const dsPatterns = ['stack', 'queue', 'linked list', 'binary tree'];
+    if (dsPatterns.some(p => text.includes(p))) scores.data_structure += 3;
+    
+    // String Operations
+    const stringPatterns = ['string', 'reverse', 'palindrome', 'count', 'character'];
+    if (stringPatterns.some(p => text.includes(p))) scores.string_ops += 2;
+    
+    // Find the highest scoring style
+    const maxScore = Math.max(...Object.values(scores));
+    const detectedStyles = Object.entries(scores)
+        .filter(([style, score]) => score === maxScore && score > 0)
+        .map(([style]) => style);
+    
+    // Return the most likely style
+    if (detectedStyles.length > 0 && maxScore >= 2) {
+        return detectedStyles[0];
+    }
+    
+    // Default fallback
+    if (text.includes('implement') || text.includes('create') || text.includes('build')) {
+        return 'algorithm_io';
+    }
+    
+    return 'default';
 }
 
 // Debug endpoint to check Qdrant data
