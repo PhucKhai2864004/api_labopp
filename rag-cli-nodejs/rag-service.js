@@ -411,7 +411,32 @@ app.post('/review-code', async (req, res) => {
         const context = await similaritySearch('code review', assignmentId, 3);
         const contextText = context.map(c => c.text).join('\n\n');
 
-        // Prepare prompt for code review (request strict JSON)
+        // Guard: if submission likely mismatches assignment (no/weak context), return INVALID_ASSIGNMENT
+        const topScore = context?.[0]?.score ?? 0;
+        if (!context || context.length === 0 || topScore < 0.2) {
+            debugLog('Context too weak or missing for this assignment; marking as INVALID_ASSIGNMENT', { topScore, contextCount: context?.length || 0 });
+            return res.json({
+                success: true,
+                assignmentId: assignmentId,
+                submissionId: submissionId,
+                reviewAllowed: true,
+                review: 'Submission does not match the assignment requirements.',
+                hasErrors: true,
+                errorCount: 1,
+                summary: 'Code does not align with the stored assignment context.',
+                rawResponse: JSON.stringify({
+                    status: 'INVALID_ASSIGNMENT',
+                    issues: [
+                        { type: 'requirement', message: 'Submission content does not match the assignment requirements.', description: 'The code appears unrelated to the assignment context stored for this assignmentId.', file: null, line: null }
+                    ],
+                    hasErrors: true,
+                    errorCount: 1,
+                    summary: 'Code does not align with the stored assignment context.'
+                })
+            });
+        }
+
+        // Prepare prompt for code review (concise strict JSON, no emojis/markdown, no code fixes)
         const prompt = `You are an expert programming instructor reviewing student code.
 
 Assignment Context:
@@ -423,20 +448,34 @@ ${extractedCode}
 Language: ${language}
 Algorithm Type: ${algorithmType}
 
-Please provide a comprehensive code review including:
-1. Code quality assessment
-2. Logic analysis
-3. Potential improvements
-4. Best practices suggestions
-5. Any errors or issues found
+Task:
+- Analyze the code strictly against the assignment context.
+- Do NOT propose code fixes or provide rewritten code.
+- If the submission does not implement the assignment requirements, set status to "INVALID_ASSIGNMENT" and describe the missing requirements.
+- Detect and report concrete issues only (syntax, logic, requirement mismatches). Prefer precision over volume.
+- Absolutely NO emojis, NO markdown, NO code fences.
 
-Please respond with ONLY a valid JSON object (no markdown, no code fences) using this structure:
+Output:
+Return ONLY a valid JSON object with this exact schema (no extra fields):
 {
-  "review": "detailed review text",
-  "hasErrors": true/false,
+  "status": "OK" | "SYNTAX_ERROR" | "INVALID_ASSIGNMENT",
+  "issues": [
+    {
+      "type": "syntax" | "logic" | "requirement",
+      "message": string,
+      "description": string,  // short 1-2 sentence description of the faulty code
+      "file": string | null,
+      "line": number | null
+    }
+  ],
+  "hasErrors": boolean,
   "errorCount": number,
-  "summary": "brief summary"
-}`;
+  "summary": string
+}
+
+Notes:
+- Keep description short and focused on the faulty code (no suggestions/fixes).
+- If helpful, include at most one short inline code excerpt (<= 120 chars) inside description, still as plain text, no markdown.`;
         
         // Call Gemini for code review (align with suggest-testcases)
         const geminiApiKey = getGeminiApiKey();
@@ -472,19 +511,24 @@ Please respond with ONLY a valid JSON object (no markdown, no code fences) using
         const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
         debugLog('Gemini code review response received', { responseLength: responseText?.length });
 
-        let reviewResult;
+        // Parse JSON strictly; if invalid, return 502 to caller
+        let parsed;
         try {
-            reviewResult = JSON.parse(responseText);
-            debugLog('Code review JSON parsed successfully', { hasErrors: reviewResult.hasErrors, errorCount: reviewResult.errorCount });
+            parsed = JSON.parse(responseText);
         } catch (parseError) {
-            debugLog('Code review JSON parsing failed, using fallback', { parseError: parseError.message });
-            reviewResult = {
-                review: responseText,
-                hasErrors: false,
-                errorCount: 0,
-                summary: 'AI review completed'
-            };
+            debugLog('Code review JSON parsing failed', { parseError: parseError.message, responsePreview: responseText.slice(0, 200) });
+            return res.status(502).json({ 
+                success: false,
+                error: 'LLM did not return valid JSON',
+                rawResponse: responseText
+            });
         }
+
+        // Minimal mapping for outer API while returning minified JSON inside rawResponse
+        const minified = JSON.stringify(parsed);
+        const hasErrors = !!parsed.hasErrors;
+        const errorCount = typeof parsed.errorCount === 'number' ? parsed.errorCount : (Array.isArray(parsed.issues) ? parsed.issues.length : 0);
+        const summary = typeof parsed.summary === 'string' ? parsed.summary : '';
 
         debugLog('Code review completed successfully', { assignmentId, submissionId, hasErrors: reviewResult.hasErrors, errorCount: reviewResult.errorCount });
         res.json({
@@ -492,11 +536,11 @@ Please respond with ONLY a valid JSON object (no markdown, no code fences) using
             assignmentId: assignmentId,
             submissionId: submissionId,
             reviewAllowed: true,
-            review: reviewResult.review,
-            hasErrors: reviewResult.hasErrors,
-            errorCount: reviewResult.errorCount,
-            summary: reviewResult.summary,
-            rawResponse: responseText
+            review: summary,
+            hasErrors: hasErrors,
+            errorCount: errorCount,
+            summary: summary,
+            rawResponse: minified
         });
 
     } catch (error) {
