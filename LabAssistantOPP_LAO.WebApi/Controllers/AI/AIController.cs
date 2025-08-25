@@ -137,18 +137,21 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.AI
         }
 
         /// <summary>
-        /// Review code của student khi nộp bài (chỉ Student)
+        /// Review code của student submission dựa trên assignment context
         /// </summary>
         [HttpPost("review-code")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,Teacher,Head Subject")]
         public async Task<IActionResult> ReviewCode([FromBody] ReviewCodeRequest request)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(request.StudentCode))
-                    return BadRequest(ApiResponse<object>.ErrorResponse("StudentCode is required"));
+                if (request.AssignmentId <= 0)
+                    return BadRequest(ApiResponse<object>.ErrorResponse("AssignmentId is required"));
 
-                var result = await _aiService.ReviewCodeAsync(request.AssignmentId, request.StudentCode);
+                if (request.SubmissionId <= 0)
+                    return BadRequest(ApiResponse<object>.ErrorResponse("SubmissionId is required"));
+
+                var result = await _aiService.ReviewCodeAsync(request.AssignmentId, request.SubmissionId);
 
                 if (result.ReviewAllowed)
                 {
@@ -156,6 +159,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.AI
                         new
                         {
                             assignmentId = result.AssignmentId,
+                            submissionId = result.SubmissionId,
                             review = result.Review,
                             hasErrors = result.HasErrors,
                             errorCount = result.ErrorCount,
@@ -242,6 +246,6 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.AI
     public class ReviewCodeRequest
     {
         public int AssignmentId { get; set; }
-        public string StudentCode { get; set; } = "";
+        public int SubmissionId { get; set; }
     }
 }
