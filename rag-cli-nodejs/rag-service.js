@@ -530,7 +530,7 @@ Notes:
         const errorCount = typeof parsed.errorCount === 'number' ? parsed.errorCount : (Array.isArray(parsed.issues) ? parsed.issues.length : 0);
         const summary = typeof parsed.summary === 'string' ? parsed.summary : '';
 
-        debugLog('Code review completed successfully', { assignmentId, submissionId, hasErrors: reviewResult.hasErrors, errorCount: reviewResult.errorCount });
+        debugLog('Code review completed successfully', { assignmentId, submissionId, hasErrors: hasErrors, errorCount: errorCount });
         res.json({
             success: true,
             assignmentId: assignmentId,
