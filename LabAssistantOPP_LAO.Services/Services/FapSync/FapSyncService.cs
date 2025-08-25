@@ -90,6 +90,7 @@ namespace Business_Logic.Services.FapSync
 							user = new User
 							{
 								Email = email,
+								Name= fapStu.Name,
 								UserName = fapStu.Username,
 								RoleId = studentRoleId,
 								IsActive = true,
