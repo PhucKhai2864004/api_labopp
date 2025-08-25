@@ -96,6 +96,7 @@ namespace Business_Logic.Services.FapSync
 								CreatedAt = DateTime.UtcNow
 							};
 							_context.Users.Add(user);
+							await _context.SaveChangesAsync();
 						}
 
 						// 🔄 luôn update (ghi đè)
