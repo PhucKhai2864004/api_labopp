@@ -10,6 +10,9 @@ using Microsoft.Extensions.Configuration;
 using LabAssistantOPP_LAO.Models.Data;
 using Microsoft.EntityFrameworkCore;
 using Business_Logic.Interfaces.AI;
+using System.Security.Cryptography;
+using System.Collections.Generic;
+using System.IO;
 
 namespace Business_Logic.Services.AI
 {
@@ -20,17 +23,20 @@ namespace Business_Logic.Services.AI
         private readonly string _ragServiceUrl;
         private readonly string _aiServiceUrl;
         private readonly string _geminiApiKey;
+        private readonly LabOopChangeV6Context _context;
 
         public AIService(
             HttpClient httpClient,
             IConfiguration configuration,
-            ILogger<AIService> logger)
+            ILogger<AIService> logger,
+            LabOopChangeV6Context context)
         {
             _httpClient = httpClient;
             _logger = logger;
             _ragServiceUrl = configuration["AIServices:RAGServiceUrl"] ?? "http://localhost:3001";
             _aiServiceUrl = configuration["AIServices:AIServiceUrl"] ?? "http://localhost:3000";
             _geminiApiKey = configuration["AIServices:GeminiApiKey"] ?? "AIzaSyDxFNK8N6Y9bkLkNwhoENVhq-gNHH3UrnY";
+            _context = context;
             
             // Set timeout to 120 seconds for RAG operations
             _httpClient.Timeout = TimeSpan.FromSeconds(120);
@@ -436,28 +442,108 @@ namespace Business_Logic.Services.AI
         {
             try
             {
-                // TODO: Implement actual logic to:
-                // 1. Get submission from database
-                // 2. Extract ZIP file
-                // 3. Read all code files
-                // 4. Return concatenated code
-                
                 _logger.LogInformation($"Extracting code from submission {submissionId}");
-                
-                // Placeholder implementation
-                // In real implementation, this would:
-                // - Query database for submission
-                // - Get file path to ZIP
-                // - Extract ZIP to temp directory
-                // - Read all .java, .cpp, .py files
-                // - Concatenate with file headers
-                
-                return "// Placeholder extracted code\npublic class Main {\n    public static void main(String[] args) {\n        // Student code would be here\n    }\n}";
+
+                var submission = await _context.StudentLabAssignments
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.Id == submissionId);
+
+                if (submission == null)
+                {
+                    _logger.LogWarning($"Submission {submissionId} not found");
+                    return string.Empty;
+                }
+
+                if (string.IsNullOrWhiteSpace(submission.SubmissionZip))
+                {
+                    _logger.LogWarning($"Submission {submissionId} has no zip path");
+                    return string.Empty;
+                }
+
+                // submission_zip is stored as a path relative to wwwroot
+                var wwwroot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var zipAbsolutePath = Path.GetFullPath(Path.Combine(wwwroot, submission.SubmissionZip.Replace('/', Path.DirectorySeparatorChar)));
+
+                if (!System.IO.File.Exists(zipAbsolutePath))
+                {
+                    _logger.LogWarning($"Zip file not found at {zipAbsolutePath}");
+                    return string.Empty;
+                }
+
+                // Create temp working directory
+                var tempRoot = Path.Combine(Path.GetTempPath(), "lao_review", Guid.NewGuid().ToString("N"));
+                var extractedDir = Path.Combine(tempRoot, "extracted");
+                Directory.CreateDirectory(extractedDir);
+
+                // Security settings
+                var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ".java", ".cpp", ".py"
+                };
+                const long perFileLimitBytes = 2L * 1024 * 1024; // 2MB per file
+                const long totalLimitBytes = 50L * 1024 * 1024;  // 50MB total
+
+                long totalBytes = 0;
+
+                using (var zipStream = System.IO.File.OpenRead(zipAbsolutePath))
+                using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Read))
+                {
+                    foreach (var entry in archive.Entries)
+                    {
+                        if (string.IsNullOrEmpty(entry.Name))
+                            continue; // skip directories
+
+                        // Path traversal protection
+                        var normalized = entry.FullName.Replace('\\', '/');
+                        if (normalized.Contains(".."))
+                            continue;
+
+                        var ext = Path.GetExtension(entry.Name);
+                        if (!allowedExtensions.Contains(ext))
+                            continue;
+
+                        if (entry.Length <= 0 || entry.Length > perFileLimitBytes)
+                            continue;
+
+                        if (totalBytes + entry.Length > totalLimitBytes)
+                            break;
+
+                        var destinationPath = Path.Combine(extractedDir, entry.FullName.Replace('/', Path.DirectorySeparatorChar));
+                        var destinationDir = Path.GetDirectoryName(destinationPath);
+                        if (!string.IsNullOrEmpty(destinationDir))
+                            Directory.CreateDirectory(destinationDir);
+
+                        using var entryStream = entry.Open();
+                        using var outStream = System.IO.File.Create(destinationPath);
+                        await entryStream.CopyToAsync(outStream);
+                        totalBytes += entry.Length;
+                    }
+                }
+
+                // Read back allowed files and concatenate
+                var builder = new StringBuilder();
+                if (Directory.Exists(extractedDir))
+                {
+                    foreach (var filePath in Directory.EnumerateFiles(extractedDir, "*.*", SearchOption.AllDirectories)
+                        .Where(p => allowedExtensions.Contains(Path.GetExtension(p))))
+                    {
+                        var relative = Path.GetRelativePath(extractedDir, filePath).Replace('\\', '/');
+                        builder.AppendLine($"// File: {relative}");
+                        var content = await System.IO.File.ReadAllTextAsync(filePath);
+                        builder.AppendLine(content);
+                        builder.AppendLine();
+                    }
+                }
+
+                // Cleanup (best-effort)
+                try { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true); } catch { }
+
+                return builder.ToString();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error extracting code from submission {submissionId}");
-                return "";
+                return string.Empty;
             }
         }
 
