@@ -19,5 +19,7 @@ public partial class Teacher
 
     public string? Address { get; set; }
 
-    public virtual User IdNavigation { get; set; } = null!;
+	public virtual ICollection<FapClass> FapClasses { get; set; } = new List<FapClass>();
+
+	public virtual User IdNavigation { get; set; } = null!;
 }

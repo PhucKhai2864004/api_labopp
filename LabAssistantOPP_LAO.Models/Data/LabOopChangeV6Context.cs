@@ -333,12 +333,18 @@ public partial class LabOopChangeV6Context : DbContext
 				.HasMaxLength(50)
 				.IsUnicode(false)
 				.HasColumnName("teacher_code");
+			entity.Property(e => e.TeacherId).HasColumnName("teacher_id");
 
 			entity.HasOne(d => d.Semester).WithMany(p => p.FapClasses)
                 .HasForeignKey(d => d.SemesterId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__FAP_Class__semes__17F790F9");
-        });
+
+			entity.HasOne(d => d.Teacher).WithMany(p => p.FapClasses)
+				.HasForeignKey(d => d.TeacherId)
+				.OnDelete(DeleteBehavior.ClientSetNull)
+				.HasConstraintName("FK_FAP_Class_Teacher");
+		});
 
 		modelBuilder.Entity<FapClassSlot>(entity =>
 		{
