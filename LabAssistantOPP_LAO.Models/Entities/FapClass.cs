@@ -19,9 +19,7 @@ public partial class FapClass
 
     public string? TeacherCode { get; set; }
 
-
 	public int TeacherId { get; set; }
-
 
     public virtual ICollection<FapClassSlot> FapClassSlots { get; set; } = new List<FapClassSlot>();
 
