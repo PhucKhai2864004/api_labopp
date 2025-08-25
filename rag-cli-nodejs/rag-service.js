@@ -449,13 +449,18 @@ Please respond with ONLY a valid JSON object (no markdown, no code fences) using
         const geminiBase = process.env.GENAI_BASE || 'https://generativelanguage.googleapis.com';
 
         debugLog('Calling Gemini for code review', { assignmentId, model: geminiModel, promptLength: prompt.length });
-        const geminiResponse = await fetch(`${geminiBase}/v1/models/${geminiModel}:generateContent?key=${geminiApiKey}`, {
+        const payload = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }]
-            })
-        });
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        };
+
+        // Try v1 first, then fallback to v1beta on 404
+        let geminiResponse = await fetch(`${geminiBase}/v1/models/${geminiModel}:generateContent?key=${geminiApiKey}`, payload);
+        if (geminiResponse.status === 404) {
+            debugLog('Gemini v1 endpoint returned 404, retrying with v1beta', { model: geminiModel });
+            geminiResponse = await fetch(`${geminiBase}/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`, payload);
+        }
 
         if (!geminiResponse.ok) {
             const errorText = await geminiResponse.text();

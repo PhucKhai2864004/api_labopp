@@ -102,9 +102,10 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - OLLAMA_URL=http://ollama:11434
 
-      # Google Gemini Configuration
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-AIzaSyDxFNK8N6Y9bkLkNwhoENVhq-gNHH3UrnY}
-      - GENAI_MODEL=${GENAI_MODEL:-gemini-1.5-flash-latest}
+      # Google Gemini Configuration (unified to Gemini 2.5)
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-${GOOGLE_API_KEY:-AIzaSyDxFNK8N6Y9bkLkNwhoENVhq-gNHH3UrnY}}
+      - GENAI_MODEL=${GENAI_MODEL:-gemini-2.5-flash}
+      - GENAI_MODEL_REVIEW=${GENAI_MODEL_REVIEW:-gemini-2.5-flash}
       - GENAI_BASE=https://generativelanguage.googleapis.com
 
       # Service Configuration
