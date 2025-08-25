@@ -1,8 +1,10 @@
 ﻿using Business_Logic.Interfaces.Admin;
 using LabAssistantOPP_LAO.DTO.DTOs.Admin;
 using LabAssistantOPP_LAO.Models.Common;
+using LabAssistantOPP_LAO.Models.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace LabAssistantOPP_LAO.WebApi.Controllers.Admin
 {
@@ -13,11 +15,13 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Admin
     public class AdminAccountController : ControllerBase
     {
         private readonly IUserManagementService _service;
+		private readonly LabOopChangeV6Context _context;
 
-        public AdminAccountController(IUserManagementService service)
+		public AdminAccountController(IUserManagementService service, LabOopChangeV6Context context)
         {
             _service = service;
-        }
+			_context = context;
+		}
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetUserById(int id)
@@ -36,7 +40,31 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Admin
             return Ok(ApiResponse<List<UserDto>>.SuccessResponse(data, "Success"));
         }
 
-        [HttpPost]
+		[HttpGet("statistics")]
+		public async Task<IActionResult> GetUserStatistics()
+		{
+			var totalAccounts = await _context.Users.CountAsync(u => u.IsActive);
+
+			var totalStudents = await _context.Users
+				.Where(u => u.IsActive && u.Student != null)
+			.CountAsync();
+
+			var totalTeachers = await _context.Users
+				.Where(u => u.IsActive && u.Teacher != null)
+				.CountAsync();
+
+			var result = new
+			{
+				TotalAccounts = totalAccounts,
+				TotalStudents = totalStudents,
+				TotalTeachers = totalTeachers
+			};
+
+			return Ok(ApiResponse<object>.SuccessResponse(result, "Success"));
+		}
+
+
+		[HttpPost]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
         {
             if (!ModelState.IsValid)
