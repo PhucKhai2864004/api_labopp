@@ -400,6 +400,19 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 		//          return Ok(promt);
 		//      }
 
+		// GET: api/classes
+		[HttpGet("AllClasses")]
+		public async Task<IActionResult> GetAllClasses()
+		{
+			var classes = await _context.Classes
+				.Include(c => c.Semester) // lấy luôn thông tin Semester
+				.Include(c => c.Teacher)  // lấy luôn thông tin Teacher
+				.Include(c => c.ClassSlots) // lấy luôn các Slot
+				.ToListAsync();
+
+			return Ok(classes);
+		}
+
 
 		private ApiResponse<string> ValidationErrorResponse()
         {
