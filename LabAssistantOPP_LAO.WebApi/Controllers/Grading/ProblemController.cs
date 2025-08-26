@@ -78,7 +78,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 		public async Task<IActionResult> LoadFromFiles(
 			[FromForm] int assignmentId,
 			[FromForm] List<IFormFile> files,
-			[FromForm] List<string>? descriptions)
+			[FromForm] string? description)
 		{
 			if (files == null || files.Count == 0)
 				return BadRequest(ApiResponse<object>.ErrorResponse("No files uploaded."));
