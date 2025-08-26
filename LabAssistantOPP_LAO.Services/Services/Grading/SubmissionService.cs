@@ -99,7 +99,6 @@ namespace Business_Logic.Services.Grading
 				// Ghi đè Draft cũ
 				existing.SubmissionZip = submissionZipRelative;
 				existing.SubmittedAt = DateTime.UtcNow;
-				existing.LocResult = 0;
 				existing.ManuallyEdited = false;
 				existing.Status = dto.Status;
 
@@ -129,7 +128,6 @@ namespace Business_Logic.Services.Grading
 					SubmissionZip = submissionZipRelative,
 					Status = dto.Status, // mặc định
 					SubmittedAt = DateTime.UtcNow,
-					LocResult = 0,
 					ManuallyEdited = false
 				};
 
@@ -184,7 +182,6 @@ namespace Business_Logic.Services.Grading
 			if (resultDetails.Any()) // chỉ update nếu có test case được chấm
 			{
 				//sla.Status = newResults.All(r => (bool)r.IsPassed) ? "Passed" : "Reject";
-				sla.LocResult = resultDetails.Sum(r => r.DurationMs);
 				sla.SubmittedAt = DateTime.UtcNow;
 			}
 
