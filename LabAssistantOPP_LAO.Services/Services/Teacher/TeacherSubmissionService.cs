@@ -96,13 +96,33 @@ namespace Business_Logic.Services.Teacher
 
 		public async Task<bool> GradeSubmissionAsync(int submissionId, bool isPass)
 		{
-			var submission = await _context.StudentLabAssignments.FindAsync(submissionId);
-			if (submission == null) return false;
+			var submission = await _context.StudentLabAssignments
+				.Include(s => s.Assignment) // load luôn LabAssignment để lấy LocTotal
+				.FirstOrDefaultAsync(s => s.Id == submissionId);
+
+			if (submission == null)
+				return false;
+
+			// ✅ chỉ chấm được nếu trạng thái hiện tại là "Submit"
+			if (!string.Equals(submission.Status, "Submit", StringComparison.OrdinalIgnoreCase))
+				return false;
 
 			submission.Status = isPass ? "Passed" : "Reject";
+
+			// Nếu pass thì cộng LOC của assignment vào LocResult của student
+			if (isPass && submission.Assignment?.LocTotal != null)
+			{
+				submission.LocResult = (submission.LocResult ?? 0) + submission.Assignment.LocTotal.Value;
+			}
+
+			// Đánh dấu là giáo viên chỉnh sửa thủ công
+			submission.ManuallyEdited = true;
+			submission.SubmittedAt = DateTime.UtcNow;
+
 			await _context.SaveChangesAsync();
 			return true;
 		}
+
 
 		public async Task<bool> SubmitFeedbackAsync(int submissionId, int teacherId, string comment)
 		{
