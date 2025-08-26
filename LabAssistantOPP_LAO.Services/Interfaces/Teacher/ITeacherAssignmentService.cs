@@ -12,6 +12,6 @@ namespace Business_Logic.Interfaces.Teacher
 		Task<List<AssignmentDto>> GetAssignmentsByClassAsync(int classId);
 		Task<AssignmentDto?> GetAssignmentDetailAsync(int assignmentId);
 		Task<int> CreateAssignmentAsync(int classId, int teacherId, CreateAssignmentRequest request);
-		Task<bool> UpdateAssignmentAsync(UpdateAssignmentRequest request);
+		Task<bool> UpdateAssignmentAsync(int teacherId, UpdateAssignmentRequest request);
 	}
 }
