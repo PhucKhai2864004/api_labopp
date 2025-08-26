@@ -43,7 +43,6 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 			return Ok(ApiResponse<List<LabAssignmentDto>>.SuccessResponse(assignments, "Danh sách đề bài"));
 		}
 
-		// ✅ Thêm đề bài
 		[HttpPost("add")]
 		public async Task<IActionResult> AddAssignment([FromBody] CreateLabAssignmentDto dto)
 		{
@@ -66,7 +65,21 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 			};
 
 			_context.LabAssignments.Add(assignment);
-			await _context.SaveChangesAsync();
+			await _context.SaveChangesAsync(); // Lưu để assignment có Id
+
+			if (dto.ClassIds != null && dto.ClassIds.Any())
+			{
+				foreach (var classId in dto.ClassIds)
+				{
+					var classAssignment = new ClassHasLabAssignment
+					{
+						ClassId = classId,
+						AssignmentId = assignment.Id
+					};
+					_context.ClassHasLabAssignments.Add(classAssignment);
+				}
+				await _context.SaveChangesAsync();
+			}
 
 			return Ok(ApiResponse<int>.SuccessResponse(assignment.Id, "Thêm đề bài thành công"));
 		}
