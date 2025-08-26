@@ -44,11 +44,11 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
             return Ok(ApiResponse<AssignmentDto>.SuccessResponse(data, "Success"));
         }
 
-        [HttpPost("{classId}")]
-        public async Task<IActionResult> CreateAssignment(int classId, [FromBody] CreateAssignmentRequest request)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ValidationErrorResponse());
+		[HttpPost("{classId}")]
+		public async Task<IActionResult> CreateAssignment(int classId, [FromForm] CreateAssignmentRequest request)
+		{
+			if (!ModelState.IsValid)
+				return BadRequest(ValidationErrorResponse());
 
 			if (!int.TryParse(User.FindFirstValue("userId"), out int teacherId))
 				return Unauthorized(ApiResponse<string>.ErrorResponse("Không xác định được giáo viên"));
@@ -56,35 +56,40 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
 			var newId = await _service.CreateAssignmentAsync(classId, teacherId, request);
 
 			return Ok(ApiResponse<int>.SuccessResponse(newId, "Created"));
-        }
+		}
 
-        [HttpPut]
-        public async Task<IActionResult> UpdateAssignment([FromBody] UpdateAssignmentRequest request)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ValidationErrorResponse());
+		[HttpPut]
+		public async Task<IActionResult> UpdateAssignment([FromForm] UpdateAssignmentRequest request)
+		{
+			if (!ModelState.IsValid)
+				return BadRequest(ValidationErrorResponse());
 
-            var success = await _service.UpdateAssignmentAsync(request);
-            return Ok(ApiResponse<string>.SuccessResponse(success ? "Updated" : "Not found"));
-        }
+			if (!int.TryParse(User.FindFirstValue("userId"), out int teacherId))
+				return Unauthorized(ApiResponse<string>.ErrorResponse("Không xác định được giáo viên"));
 
-        //[HttpGet("view-submission")]
-        //public async Task<IActionResult> ViewJavaFileFromZip(string zipPath, string javaFileName)
-        //{
-        //    if (!System.IO.File.Exists(zipPath))
-        //        return NotFound("File zip không tồn tại.");
+			var success = await _service.UpdateAssignmentAsync(teacherId, request);
 
-        //    using var archive = ZipFile.OpenRead(zipPath);
-        //    var entry = archive.Entries.FirstOrDefault(e => e.FullName.EndsWith(javaFileName));
+			return Ok(ApiResponse<string>.SuccessResponse(success ? "Updated" : "Not found"));
+		}
 
-        //    if (entry == null)
-        //        return NotFound("Không tìm thấy file .java.");
 
-        //    using var reader = new StreamReader(entry.Open(), Encoding.UTF8);
-        //    var content = await reader.ReadToEndAsync();
+		//[HttpGet("view-submission")]
+		//public async Task<IActionResult> ViewJavaFileFromZip(string zipPath, string javaFileName)
+		//{
+		//    if (!System.IO.File.Exists(zipPath))
+		//        return NotFound("File zip không tồn tại.");
 
-        //    return Content(content, "text/plain", Encoding.UTF8);
-        //}
+		//    using var archive = ZipFile.OpenRead(zipPath);
+		//    var entry = archive.Entries.FirstOrDefault(e => e.FullName.EndsWith(javaFileName));
+
+		//    if (entry == null)
+		//        return NotFound("Không tìm thấy file .java.");
+
+		//    using var reader = new StreamReader(entry.Open(), Encoding.UTF8);
+		//    var content = await reader.ReadToEndAsync();
+
+		//    return Content(content, "text/plain", Encoding.UTF8);
+		//}
 
 		[HttpGet("view-java/{submissionId}")]
 		public async Task<IActionResult> ViewJavaFiles(int submissionId)
