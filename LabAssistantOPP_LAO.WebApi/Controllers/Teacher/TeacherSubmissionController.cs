@@ -34,17 +34,22 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Teacher
             return Ok(ApiResponse<SubmissionDetailDto>.SuccessResponse(data, "Success"));
         }
 
-        [HttpPost("grade")]
-        public async Task<IActionResult> Grade([FromBody] GradeSubmissionRequest request)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ValidationErrorResponse());
+		[HttpPost("grade")]
+		public async Task<IActionResult> Grade([FromBody] GradeSubmissionRequest request)
+		{
+			if (!ModelState.IsValid)
+				return BadRequest(ValidationErrorResponse());
 
-            var ok = await _service.GradeSubmissionAsync(request.SubmissionId, request.IsPass);
-            return Ok(ApiResponse<string>.SuccessResponse(ok ? "Graded" : "Not Found"));
-        }
+			var ok = await _service.GradeSubmissionAsync(request.SubmissionId, request.Status);
+			if (!ok)
+				return BadRequest(ApiResponse<string>.ErrorResponse(
+					"Submission not found or not in 'Submit' status"));
 
-        [HttpPost("feedback")]
+			return Ok(ApiResponse<string>.SuccessResponse("Graded"));
+		}
+
+
+		[HttpPost("feedback")]
         public async Task<IActionResult> Feedback([FromBody] FeedbackRequest request)
         {
             if (!ModelState.IsValid)

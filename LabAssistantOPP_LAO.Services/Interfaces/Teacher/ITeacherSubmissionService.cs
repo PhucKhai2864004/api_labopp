@@ -12,7 +12,7 @@ namespace Business_Logic.Interfaces.Teacher
 	{
 		Task<List<SubmissionDto>> GetSubmissionsWaitingReviewAsync(int classId, SubmissionStatus? status = null);
 		Task<SubmissionDetailDto> GetSubmissionDetailAsync(int submissionId);
-		Task<bool> GradeSubmissionAsync(int submissionId, bool isPass);
+		Task<bool> GradeSubmissionAsync(int submissionId, string status);
 		Task<bool> SubmitFeedbackAsync(int submissionId, int teacherId, string comment);
 	}
 }
