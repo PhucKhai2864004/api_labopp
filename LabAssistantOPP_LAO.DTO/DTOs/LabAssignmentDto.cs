@@ -46,7 +46,9 @@ namespace LabAssistantOPP_LAO.DTO.DTOs
 
         [Required(ErrorMessage = "Trạng thái không được để trống.")]
         public string Status { get; set; }
-    }
+
+		public List<int>? ClassIds { get; set; }
+	}
 
 
 }
