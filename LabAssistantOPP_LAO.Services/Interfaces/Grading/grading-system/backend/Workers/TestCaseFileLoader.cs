@@ -4,7 +4,7 @@ namespace Business_Logic.Interfaces.Workers.Grading
 {
 	public static class TestCaseFileLoader
 	{
-		public static List<TestCase> LoadTestCasesFromFolder(string folderPath, int assignmentId, int? systemUserId = null, string? description = null)
+		public static List<TestCase> LoadTestCasesFromFolder(string folderPath, int assignmentId, int? systemUserId = null)
 		{
 			var testCases = new List<TestCase>();
 
@@ -22,7 +22,6 @@ namespace Business_Logic.Interfaces.Workers.Grading
 					AssignmentId = assignmentId,
 					Input = input,
 					ExpectedOutput = output,
-					Description = description ?? $"Test case {i + 1}",
 					CreatedAt = DateTime.UtcNow,
 					CreatedBy = systemUserId,
 					UpdatedAt = DateTime.UtcNow,
