@@ -19,15 +19,16 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Teacher
 		public string Comment { get; set; }
 	}
 
-    public class GradeSubmissionRequest
-    {
-        [Required(ErrorMessage = "Submission ID is required")]
-        public int SubmissionId { get; set; }
+	public class GradeSubmissionRequest
+	{
+		[Required(ErrorMessage = "Submission ID is required")]
+		public int SubmissionId { get; set; }
 
-        public bool IsPass { get; set; }
-    }
+		[Required(ErrorMessage = "Status is required")]
+		public string Status { get; set; } = null!; // "Passed" hoặc "Reject"
+	}
 
-    public class FeedbackRequest
+	public class FeedbackRequest
     {
         [Required(ErrorMessage = "Submission ID is required")]
         public int SubmissionId { get; set; }

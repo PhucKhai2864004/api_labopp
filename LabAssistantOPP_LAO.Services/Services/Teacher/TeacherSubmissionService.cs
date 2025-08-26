@@ -94,28 +94,27 @@ namespace Business_Logic.Services.Teacher
 			};
 		}
 
-		public async Task<bool> GradeSubmissionAsync(int submissionId, bool isPass)
+		public async Task<bool> GradeSubmissionAsync(int submissionId, string status)
 		{
 			var submission = await _context.StudentLabAssignments
-				.Include(s => s.Assignment) // load luôn LabAssignment để lấy LocTotal
+				.Include(s => s.Assignment)
 				.FirstOrDefaultAsync(s => s.Id == submissionId);
 
 			if (submission == null)
 				return false;
 
-			// ✅ chỉ chấm được nếu trạng thái hiện tại là "Submit"
+			// ✅ chỉ chấm nếu submission đang là "Submit"
 			if (!string.Equals(submission.Status, "Submit", StringComparison.OrdinalIgnoreCase))
 				return false;
 
-			submission.Status = isPass ? "Passed" : "Reject";
+			submission.Status = status; // "Passed" hoặc "Reject"
 
-			// Nếu pass thì cộng LOC của assignment vào LocResult của student
-			if (isPass && submission.Assignment?.LocTotal != null)
+			if (string.Equals(status, "Passed", StringComparison.OrdinalIgnoreCase)
+				&& submission.Assignment?.LocTotal != null)
 			{
 				submission.LocResult = (submission.LocResult ?? 0) + submission.Assignment.LocTotal.Value;
 			}
 
-			// Đánh dấu là giáo viên chỉnh sửa thủ công
 			submission.ManuallyEdited = true;
 			submission.SubmittedAt = DateTime.UtcNow;
 
