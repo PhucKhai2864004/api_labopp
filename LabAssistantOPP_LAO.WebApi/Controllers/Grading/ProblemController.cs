@@ -111,17 +111,8 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 			}
 
 			// Load test case
-			var testCases = TestCaseFileLoader.LoadTestCasesFromFolder(tempFolder, assignmentId, createdBy);
+			var testCases = TestCaseFileLoader.LoadTestCasesFromFolder(tempFolder, assignmentId, createdBy, description);
 
-			for (int i = 0; i < testCases.Count; i++)
-			{
-				if (descriptions != null && i < descriptions.Count)
-					testCases[i].Description = descriptions[i]; // 👈 set mô tả nhập tay
-				else
-					testCases[i].Description = $"Test case {i + 1}";
-
-				assignment.TestCases.Add(testCases[i]);
-			}
 
 			await _context.SaveChangesAsync();
 			return Ok(ApiResponse<LabAssignment>.SuccessResponse(assignment, "Test cases uploaded successfully."));
