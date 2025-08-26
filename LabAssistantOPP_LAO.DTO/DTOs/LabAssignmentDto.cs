@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -28,6 +29,8 @@ namespace LabAssistantOPP_LAO.DTO.DTOs
         public string Status { get; set; }
 
 		public List<int>? ClassIds { get; set; }
+
+		public IFormFile? File { get; set; }
 	}
 
     public class CreateLabAssignmentDto
@@ -50,7 +53,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs
         public string Status { get; set; }
 
 		public List<int>? ClassIds { get; set; }
+
+		public IFormFile? File { get; set; }
 	}
-
-
 }
