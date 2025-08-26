@@ -65,7 +65,7 @@ namespace Business_Logic.Services.Teacher
 				Title = assignment.Title,
 				Description = assignment.Description,
 				LocTarget = assignment.LocTotal ?? 0,
-				Status = "Open",
+				Status = assignment.Status,
 				TotalSubmissions = totalSub,
 				PassedCount = passed
 			};
