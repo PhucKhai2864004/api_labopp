@@ -42,7 +42,7 @@ namespace Business_Logic.Services.Teacher
 				Title = a.Title,
 				Description = a.Description,
 				LocTarget = a.LocTotal ?? 0,
-				Status = "Open", // TODO: update logic later
+				Status = a.Status, // TODO: update logic later
 				TotalSubmissions = submissions.Count(s => s.AssignmentId == a.Id),
 				PassedCount = submissions.Count(s => s.AssignmentId == a.Id && s.Status == "Passed")
 			}).ToList();
