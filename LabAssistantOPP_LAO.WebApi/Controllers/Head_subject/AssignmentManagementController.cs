@@ -92,7 +92,10 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 			if (!ModelState.IsValid)
 				return BadRequest(ValidationErrorResponse());
 
-			var assignment = await _context.LabAssignments.FindAsync(id);
+			var assignment = await _context.LabAssignments
+										   .Include(a => a.ClassHasLabAssignments)
+										   .FirstOrDefaultAsync(a => a.Id == id);
+
 			if (assignment == null)
 				return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy đề bài"));
 
@@ -100,12 +103,31 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 			if (!validStatuses.Contains(dto.Status))
 				return BadRequest(ApiResponse<string>.ErrorResponse("Trạng thái không hợp lệ."));
 
+			// Cập nhật thông tin cơ bản
 			assignment.Title = dto.Title;
 			assignment.Description = dto.Description;
 			assignment.LocTotal = dto.LocTotal ?? 0;
 			assignment.Status = dto.Status;
 			assignment.UpdatedAt = DateTime.Now;
 			assignment.UpdatedBy = dto.TeacherId;
+
+			// Xử lý quan hệ với ClassHasLabAssignment
+			if (dto.ClassIds != null)
+			{
+				// Xóa các quan hệ cũ
+				_context.ClassHasLabAssignments.RemoveRange(assignment.ClassHasLabAssignments);
+
+				// Thêm mới theo danh sách ClassIds
+				foreach (var classId in dto.ClassIds)
+				{
+					var classAssignment = new ClassHasLabAssignment
+					{
+						AssignmentId = assignment.Id,
+						ClassId = classId
+					};
+					_context.ClassHasLabAssignments.Add(classAssignment);
+				}
+			}
 
 			await _context.SaveChangesAsync();
 
