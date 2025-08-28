@@ -43,9 +43,8 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 			return Ok(ApiResponse<List<LabAssignmentDto>>.SuccessResponse(assignments, "Danh sách đề bài"));
 		}
 
-		// ✅ Thêm đề bài
-		[HttpPost("add")]
-		public async Task<IActionResult> AddAssignment([FromBody] CreateLabAssignmentDto dto)
+		[HttpPost("add-with-pdf")]
+		public async Task<IActionResult> AddAssignmentWithPdf([FromForm] CreateLabAssignmentDto dto)
 		{
 			if (!ModelState.IsValid)
 				return BadRequest(ValidationErrorResponse());
@@ -54,6 +53,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 			if (!validStatuses.Contains(dto.Status))
 				return BadRequest(ApiResponse<string>.ErrorResponse("Trạng thái không hợp lệ."));
 
+			// 1. Tạo assignment
 			var assignment = new LabAssignment
 			{
 				Title = dto.Title,
@@ -68,18 +68,65 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 			_context.LabAssignments.Add(assignment);
 			await _context.SaveChangesAsync();
 
-			return Ok(ApiResponse<int>.SuccessResponse(assignment.Id, "Thêm đề bài thành công"));
+			// 2. Mapping Class
+			if (dto.ClassIds != null && dto.ClassIds.Any())
+			{
+				foreach (var classId in dto.ClassIds)
+				{
+					_context.ClassHasLabAssignments.Add(new ClassHasLabAssignment
+					{
+						ClassId = classId,
+						AssignmentId = assignment.Id
+					});
+				}
+				await _context.SaveChangesAsync();
+			}
+
+			// 3. Upload PDF nếu có
+			if (dto.File != null && dto.File.Length > 0)
+			{
+				if (dto.File.ContentType != "application/pdf")
+					return BadRequest(ApiResponse<object>.ErrorResponse("Chỉ hỗ trợ file PDF"));
+
+				var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "pdf");
+				if (!Directory.Exists(uploadPath))
+					Directory.CreateDirectory(uploadPath);
+
+				var fileName = $"{Guid.NewGuid()}.pdf";
+				var filePath = Path.Combine(uploadPath, fileName);
+
+				using (var stream = new FileStream(filePath, FileMode.Create))
+					await dto.File.CopyToAsync(stream);
+
+				_context.AssignmentDocuments.Add(new AssignmentDocument
+				{
+					AssignmentId = assignment.Id,
+					FileName = dto.File.FileName,
+					FilePath = $"/uploads/pdf/{fileName}",
+					MimeType = dto.File.ContentType,
+					UploadedBy = dto.TeacherId,
+					UploadedAt = DateTime.Now
+				});
+
+				await _context.SaveChangesAsync();
+			}
+
+			return Ok(ApiResponse<int>.SuccessResponse(assignment.Id, "Thêm đề bài + upload file thành công"));
 		}
 
 
-		// ✅ Sửa đề bài
+
+
 		[HttpPut("update/{id}")]
-		public async Task<IActionResult> UpdateAssignment(int id, [FromBody] LabAssignmentDto dto)
+		public async Task<IActionResult> UpdateAssignment(int id, [FromForm] LabAssignmentDto dto)
 		{
 			if (!ModelState.IsValid)
 				return BadRequest(ValidationErrorResponse());
 
-			var assignment = await _context.LabAssignments.FindAsync(id);
+			var assignment = await _context.LabAssignments
+										   .Include(a => a.ClassHasLabAssignments)
+										   .FirstOrDefaultAsync(a => a.Id == id);
+
 			if (assignment == null)
 				return NotFound(ApiResponse<string>.ErrorResponse("Không tìm thấy đề bài"));
 
@@ -87,6 +134,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 			if (!validStatuses.Contains(dto.Status))
 				return BadRequest(ApiResponse<string>.ErrorResponse("Trạng thái không hợp lệ."));
 
+			// Cập nhật thông tin cơ bản
 			assignment.Title = dto.Title;
 			assignment.Description = dto.Description;
 			assignment.LocTotal = dto.LocTotal ?? 0;
@@ -94,10 +142,82 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 			assignment.UpdatedAt = DateTime.Now;
 			assignment.UpdatedBy = dto.TeacherId;
 
+			// Xử lý quan hệ với ClassHasLabAssignment
+			if (dto.ClassIds != null)
+			{
+				// Xóa các quan hệ cũ
+				_context.ClassHasLabAssignments.RemoveRange(assignment.ClassHasLabAssignments);
+
+				// Thêm mới theo danh sách ClassIds
+				foreach (var classId in dto.ClassIds)
+				{
+					_context.ClassHasLabAssignments.Add(new ClassHasLabAssignment
+					{
+						AssignmentId = assignment.Id,
+						ClassId = classId
+					});
+				}
+			}
+
+			// Xử lý upload file PDF
+			if (dto.File != null && dto.File.Length > 0)
+			{
+				if (dto.File.ContentType != "application/pdf")
+					return BadRequest(ApiResponse<object>.ErrorResponse("Chỉ hỗ trợ file PDF"));
+
+				var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "pdf");
+				if (!Directory.Exists(uploadPath))
+					Directory.CreateDirectory(uploadPath);
+
+				var fileName = $"{Guid.NewGuid()}.pdf";
+				var filePath = Path.Combine(uploadPath, fileName);
+
+				// Tìm file cũ
+				var existingDoc = await _context.AssignmentDocuments
+												.FirstOrDefaultAsync(d => d.AssignmentId == assignment.Id);
+
+				if (existingDoc != null)
+				{
+					// xóa file cũ
+					var oldPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", existingDoc.FilePath.TrimStart('/'));
+					if (System.IO.File.Exists(oldPath))
+						System.IO.File.Delete(oldPath);
+
+					// ghi file mới
+					using (var stream = new FileStream(filePath, FileMode.Create))
+						await dto.File.CopyToAsync(stream);
+
+					existingDoc.FileName = dto.File.FileName;
+					existingDoc.FilePath = $"/uploads/pdf/{fileName}";
+					existingDoc.MimeType = dto.File.ContentType;
+					existingDoc.UploadedBy = dto.TeacherId;
+					existingDoc.UploadedAt = DateTime.Now;
+
+					_context.AssignmentDocuments.Update(existingDoc);
+				}
+				else
+				{
+					// tạo mới nếu chưa có file
+					using (var stream = new FileStream(filePath, FileMode.Create))
+						await dto.File.CopyToAsync(stream);
+
+					_context.AssignmentDocuments.Add(new AssignmentDocument
+					{
+						AssignmentId = assignment.Id,
+						FileName = dto.File.FileName,
+						FilePath = $"/uploads/pdf/{fileName}",
+						MimeType = dto.File.ContentType,
+						UploadedBy = dto.TeacherId,
+						UploadedAt = DateTime.Now
+					});
+				}
+			}
+
 			await _context.SaveChangesAsync();
 
-			return Ok(ApiResponse<int>.SuccessResponse(id, "Cập nhật đề bài thành công"));
+			return Ok(ApiResponse<int>.SuccessResponse(id, "Cập nhật đề bài thành công (có cập nhật file nếu có)"));
 		}
+
 
 
 		// ✅ Xóa đề bài
@@ -280,70 +400,70 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 
 
 
-		[HttpPost("pdf")]
-		public async Task<IActionResult> UploadPdf(IFormFile file, [FromForm] int uploadedBy, [FromForm] int assignmentId)
-		{
-			if (file == null || file.Length == 0)
-				return BadRequest(ApiResponse<object>.ErrorResponse("File không tồn tại"));
+		//[HttpPost("pdf")]
+		//public async Task<IActionResult> UploadPdf(IFormFile file, [FromForm] int uploadedBy, [FromForm] int assignmentId)
+		//{
+		//	if (file == null || file.Length == 0)
+		//		return BadRequest(ApiResponse<object>.ErrorResponse("File không tồn tại"));
 
-			if (file.ContentType != "application/pdf")
-				return BadRequest(ApiResponse<object>.ErrorResponse("Chỉ hỗ trợ file PDF"));
+		//	if (file.ContentType != "application/pdf")
+		//		return BadRequest(ApiResponse<object>.ErrorResponse("Chỉ hỗ trợ file PDF"));
 
-			var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "pdf");
-			if (!Directory.Exists(uploadPath))
-				Directory.CreateDirectory(uploadPath);
+		//	var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "pdf");
+		//	if (!Directory.Exists(uploadPath))
+		//		Directory.CreateDirectory(uploadPath);
 
-			var fileName = $"{Guid.NewGuid()}.pdf";
-			var filePath = Path.Combine(uploadPath, fileName);
+		//	var fileName = $"{Guid.NewGuid()}.pdf";
+		//	var filePath = Path.Combine(uploadPath, fileName);
 
-			// check xem assignment đã có file chưa
-			var existingDoc = await _context.AssignmentDocuments
-				.FirstOrDefaultAsync(d => d.AssignmentId == assignmentId);
+		//	// check xem assignment đã có file chưa
+		//	var existingDoc = await _context.AssignmentDocuments
+		//		.FirstOrDefaultAsync(d => d.AssignmentId == assignmentId);
 
-			if (existingDoc != null)
-			{
-				// xóa file cũ nếu tồn tại
-				var oldPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", existingDoc.FilePath.TrimStart('/'));
-				if (System.IO.File.Exists(oldPath))
-					System.IO.File.Delete(oldPath);
+		//	if (existingDoc != null)
+		//	{
+		//		// xóa file cũ nếu tồn tại
+		//		var oldPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", existingDoc.FilePath.TrimStart('/'));
+		//		if (System.IO.File.Exists(oldPath))
+		//			System.IO.File.Delete(oldPath);
 
-				// ghi đè thông tin file mới
-				using (var stream = new FileStream(filePath, FileMode.Create))
-					await file.CopyToAsync(stream);
+		//		// ghi đè thông tin file mới
+		//		using (var stream = new FileStream(filePath, FileMode.Create))
+		//			await file.CopyToAsync(stream);
 
-				existingDoc.FileName = file.FileName;
-				existingDoc.FilePath = $"/uploads/pdf/{fileName}";
-				existingDoc.MimeType = file.ContentType;
-				existingDoc.UploadedBy = uploadedBy;
-				existingDoc.UploadedAt = DateTime.Now;
+		//		existingDoc.FileName = file.FileName;
+		//		existingDoc.FilePath = $"/uploads/pdf/{fileName}";
+		//		existingDoc.MimeType = file.ContentType;
+		//		existingDoc.UploadedBy = uploadedBy;
+		//		existingDoc.UploadedAt = DateTime.Now;
 
-				_context.AssignmentDocuments.Update(existingDoc);
-				await _context.SaveChangesAsync();
+		//		_context.AssignmentDocuments.Update(existingDoc);
+		//		await _context.SaveChangesAsync();
 
-				return Ok(ApiResponse<int>.SuccessResponse(existingDoc.Id, "Upload file thành công (ghi đè)"));
-			}
-			else
-			{
-				// tạo mới
-				using (var stream = new FileStream(filePath, FileMode.Create))
-					await file.CopyToAsync(stream);
+		//		return Ok(ApiResponse<int>.SuccessResponse(existingDoc.Id, "Upload file thành công (ghi đè)"));
+		//	}
+		//	else
+		//	{
+		//		// tạo mới
+		//		using (var stream = new FileStream(filePath, FileMode.Create))
+		//			await file.CopyToAsync(stream);
 
-				var doc = new AssignmentDocument
-				{
-					AssignmentId = assignmentId,
-					FileName = file.FileName,
-					FilePath = $"/uploads/pdf/{fileName}",
-					MimeType = file.ContentType,
-					UploadedBy = uploadedBy,
-					UploadedAt = DateTime.Now
-				};
+		//		var doc = new AssignmentDocument
+		//		{
+		//			AssignmentId = assignmentId,
+		//			FileName = file.FileName,
+		//			FilePath = $"/uploads/pdf/{fileName}",
+		//			MimeType = file.ContentType,
+		//			UploadedBy = uploadedBy,
+		//			UploadedAt = DateTime.Now
+		//		};
 
-				_context.AssignmentDocuments.Add(doc);
-				await _context.SaveChangesAsync();
+		//		_context.AssignmentDocuments.Add(doc);
+		//		await _context.SaveChangesAsync();
 
-				return Ok(ApiResponse<int>.SuccessResponse(doc.Id, "Upload file thành công"));
-			}
-		}
+		//		return Ok(ApiResponse<int>.SuccessResponse(doc.Id, "Upload file thành công"));
+		//	}
+		//}
 
 
 
@@ -364,6 +484,19 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
 
 		//          return Ok(promt);
 		//      }
+
+		// GET: api/classes
+		[HttpGet("AllClasses")]
+		public async Task<IActionResult> GetAllClasses()
+		{
+			var classes = await _context.Classes
+				.Include(c => c.Semester) // lấy luôn thông tin Semester
+				.Include(c => c.Teacher)  // lấy luôn thông tin Teacher
+				.Include(c => c.ClassSlots) // lấy luôn các Slot
+				.ToListAsync();
+
+			return Ok(classes);
+		}
 
 
 		private ApiResponse<string> ValidationErrorResponse()

@@ -42,7 +42,7 @@ namespace Business_Logic.Services.Teacher
 				Title = a.Title,
 				Description = a.Description,
 				LocTarget = a.LocTotal ?? 0,
-				Status = "Open", // TODO: update logic later
+				Status = a.Status, // TODO: update logic later
 				TotalSubmissions = submissions.Count(s => s.AssignmentId == a.Id),
 				PassedCount = submissions.Count(s => s.AssignmentId == a.Id && s.Status == "Passed")
 			}).ToList();
@@ -65,7 +65,7 @@ namespace Business_Logic.Services.Teacher
 				Title = assignment.Title,
 				Description = assignment.Description,
 				LocTarget = assignment.LocTotal ?? 0,
-				Status = "Open",
+				Status = assignment.Status,
 				TotalSubmissions = totalSub,
 				PassedCount = passed
 			};
@@ -87,33 +87,124 @@ namespace Business_Logic.Services.Teacher
 			};
 
 			await _context.LabAssignments.AddAsync(assignment);
-			await _context.SaveChangesAsync(); // save trước để có assignment.Id
+			await _context.SaveChangesAsync(); // cần assignment.Id
 
+			// Mapping class
 			var mapping = new ClassHasLabAssignment
 			{
 				ClassId = classId,
 				AssignmentId = assignment.Id
 			};
-
 			await _context.ClassHasLabAssignments.AddAsync(mapping);
 			await _context.SaveChangesAsync();
+
+			// Upload file PDF nếu có
+			if (request.File != null && request.File.Length > 0)
+			{
+				if (request.File.ContentType != "application/pdf")
+					throw new InvalidOperationException("Only PDF files are allowed");
+
+				var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "pdf");
+				if (!Directory.Exists(uploadPath))
+					Directory.CreateDirectory(uploadPath);
+
+				var fileName = $"{Guid.NewGuid()}.pdf";
+				var filePath = Path.Combine(uploadPath, fileName);
+
+				using (var stream = new FileStream(filePath, FileMode.Create))
+					await request.File.CopyToAsync(stream);
+
+				var doc = new AssignmentDocument
+				{
+					AssignmentId = assignment.Id,
+					FileName = request.File.FileName,
+					FilePath = $"/uploads/pdf/{fileName}",
+					MimeType = request.File.ContentType,
+					UploadedBy = teacherId,
+					UploadedAt = DateTime.UtcNow
+				};
+
+				await _context.AssignmentDocuments.AddAsync(doc);
+				await _context.SaveChangesAsync();
+			}
 
 			return assignment.Id;
 		}
 
-		public async Task<bool> UpdateAssignmentAsync(UpdateAssignmentRequest request)
+		public async Task<bool> UpdateAssignmentAsync(int teacherId, UpdateAssignmentRequest request)
 		{
 			var assignment = await _context.LabAssignments.FindAsync(request.AssignmentId);
 			if (assignment == null) return false;
+
+			// Chỉ cho phép update nếu Status = Pending
+			if (!string.Equals(assignment.Status, "Pending", StringComparison.OrdinalIgnoreCase))
+				return false;
 
 			assignment.Title = request.Title;
 			assignment.Description = request.Description;
 			assignment.LocTotal = request.LocTarget;
 			assignment.UpdatedAt = DateTime.UtcNow;
-			// assignment.UpdatedBy = ??? (truyền teacherId từ context nếu cần)
+			assignment.UpdatedBy = teacherId;
+
+			// Upload file PDF nếu có
+			if (request.File != null && request.File.Length > 0)
+			{
+				if (request.File.ContentType != "application/pdf")
+					throw new InvalidOperationException("Only PDF files are allowed");
+
+				var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "pdf");
+				if (!Directory.Exists(uploadPath))
+					Directory.CreateDirectory(uploadPath);
+
+				var fileName = $"{Guid.NewGuid()}.pdf";
+				var filePath = Path.Combine(uploadPath, fileName);
+
+				var existingDoc = await _context.AssignmentDocuments
+					.FirstOrDefaultAsync(d => d.AssignmentId == assignment.Id);
+
+				if (existingDoc != null)
+				{
+					// Xóa file cũ
+					var oldPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", existingDoc.FilePath.TrimStart('/'));
+					if (System.IO.File.Exists(oldPath))
+						System.IO.File.Delete(oldPath);
+
+					// Ghi đè file mới
+					using (var stream = new FileStream(filePath, FileMode.Create))
+						await request.File.CopyToAsync(stream);
+
+					existingDoc.FileName = request.File.FileName;
+					existingDoc.FilePath = $"/uploads/pdf/{fileName}";
+					existingDoc.MimeType = request.File.ContentType;
+					existingDoc.UploadedBy = teacherId;
+					existingDoc.UploadedAt = DateTime.UtcNow;
+
+					_context.AssignmentDocuments.Update(existingDoc);
+				}
+				else
+				{
+					// Tạo mới
+					using (var stream = new FileStream(filePath, FileMode.Create))
+						await request.File.CopyToAsync(stream);
+
+					var doc = new AssignmentDocument
+					{
+						AssignmentId = assignment.Id,
+						FileName = request.File.FileName,
+						FilePath = $"/uploads/pdf/{fileName}",
+						MimeType = request.File.ContentType,
+						UploadedBy = teacherId,
+						UploadedAt = DateTime.UtcNow
+					};
+
+					await _context.AssignmentDocuments.AddAsync(doc);
+				}
+			}
 
 			await _context.SaveChangesAsync();
 			return true;
 		}
+
+
 	}
 }

@@ -63,7 +63,7 @@ namespace LabAssistantOPP_LAO.DTO.DTOs.Admin
 	public class ChangeUserStatusRequest
 	{
         [Required(ErrorMessage = "User ID is required")]
-        public string Id { get; set; }
+        public int Id { get; set; }
 		public bool IsActive { get; set; }
 		public string Reason { get; set; }
 	}
