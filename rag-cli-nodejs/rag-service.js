@@ -394,9 +394,9 @@ async function similaritySearch(query, assignmentId, limit = 5) {
 // Review student code
 app.post('/review-code', async (req, res) => {
     try {
-        const { assignmentId, submissionId, extractedCode, algorithmType = 'General', language = 'Java' } = req.body;
+        const { assignmentId, submissionId, extractedCode, algorithmType = 'General', language = 'Java', testCases = [], actuals = [] } = req.body;
 
-        debugLog('Code review request received', { assignmentId, submissionId, hasExtractedCode: !!extractedCode, algorithmType, language });
+        debugLog('Code review request received', { assignmentId, submissionId, hasExtractedCode: !!extractedCode, algorithmType, language, testCasesCount: Array.isArray(testCases) ? testCases.length : 0, actualsCount: Array.isArray(actuals) ? actuals.length : 0 });
 
         if (!assignmentId || !submissionId || !extractedCode) {
             debugLog('Missing required fields for code review', { hasAssignmentId: !!assignmentId, hasSubmissionId: !!submissionId, hasExtractedCode: !!extractedCode });
@@ -436,7 +436,20 @@ app.post('/review-code', async (req, res) => {
             });
         }
 
-        // Prepare prompt for code review (concise strict JSON, no emojis/markdown, no code fixes)
+        // Prepare prompt for code review (concise strict JSON, no emojis/markdown, no code fixes). Include ground-truth I/O and observed outputs when provided.
+        // Limit included cases to keep prompt size reasonable
+        const MAX_CASES = 10;
+        const trimmedTestCases = Array.isArray(testCases) ? testCases.slice(0, MAX_CASES) : [];
+        const trimmedActuals = Array.isArray(actuals) ? actuals.slice(0, MAX_CASES) : [];
+
+        const testCasesBlock = trimmedTestCases.length > 0
+            ? `Ground truth tests (input/expected):\n${trimmedTestCases.map((tc, i) => `#${i+1} input: ${String(tc.input).slice(0, 500)}\nexpected: ${String(tc.expectedOutput).slice(0, 500)}`).join('\n\n')}`
+            : 'Ground truth tests: none provided';
+
+        const actualsBlock = trimmedActuals.length > 0
+            ? `Observed outputs from grading (input/actual[+status]):\n${trimmedActuals.map((a, i) => `#${i+1} input: ${String(a.input).slice(0, 500)}\nactual: ${String(a.actualOutput || '').slice(0, 500)}\npassed: ${a.passed === true}`).join('\n\n')}`
+            : 'Observed outputs: none provided';
+
         const prompt = `You are an expert programming instructor reviewing student code.
 
 Assignment Context:
@@ -448,6 +461,10 @@ ${extractedCode}
 Language: ${language}
 Algorithm Type: ${algorithmType}
 
+${testCasesBlock}
+
+${actualsBlock}
+
 Task:
 - Analyze the code strictly against the assignment context.
 - Do NOT propose code fixes or provide rewritten code.
@@ -458,7 +475,7 @@ Task:
 Output:
 Return ONLY a valid JSON object with this exact schema (no extra fields):
 {
-  "status": "OK" | "SYNTAX_ERROR" | "INVALID_ASSIGNMENT",
+  "status": "OK" | "SYNTAX_ERROR" | "LOGIC_ERROR" | "INVALID_ASSIGNMENT",
   "issues": [
     {
       "type": "syntax" | "logic" | "requirement",
@@ -468,6 +485,15 @@ Return ONLY a valid JSON object with this exact schema (no extra fields):
       "line": number | null
     }
   ],
+  "evidence": [
+    {
+      "input": string,
+      "expectedOutput": string,
+      "actualOutput": string,
+      "reason": string
+    }
+  ],
+  "ioCoverage": { "provided": number, "used": number, "failed": number },
   "hasErrors": boolean,
   "errorCount": number,
   "summary": string
@@ -475,6 +501,7 @@ Return ONLY a valid JSON object with this exact schema (no extra fields):
 
 Notes:
 - Keep description short and focused on the faulty code (no suggestions/fixes).
+- If evidence is provided (testCases/actuals), prioritize logic evaluation from them. Classify LOGIC_ERROR if a significant portion of used cases fail.
 - If helpful, include at most one short inline code excerpt (<= 120 chars) inside description, still as plain text, no markdown.`;
         
         // Call Gemini for code review (align with suggest-testcases)

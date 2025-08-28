@@ -327,8 +327,38 @@ namespace Business_Logic.Services.AI
             {
                 _logger.LogInformation($"Reviewing code for assignment {assignmentId}, submission {submissionId}");
 
-                // TODO: Cần inject DbContext để lấy submission data
-                // Tạm thời sử dụng placeholder logic
+                // 1) Validate prerequisites: must have testcases and grading results
+                var hasTestCases = await _context.TestCases.AnyAsync(tc => tc.AssignmentId == assignmentId);
+                if (!hasTestCases)
+                {
+                    _logger.LogWarning("Review blocked: no testcases found for assignment {AssignmentId}", assignmentId);
+                    return new CodeReviewResult
+                    {
+                        ReviewAllowed = false,
+                        AssignmentId = assignmentId,
+                        SubmissionId = submissionId,
+                        Error = "GRADING_REQUIRED: No input/output testcases found. Head Subject must upload testcases before AI review."
+                    };
+                }
+
+                var gradingResults = await _context.TestCaseResults
+                    .Include(r => r.TestCase)
+                    .Where(r => r.StudentLabAssignmentId == submissionId)
+                    .ToListAsync();
+
+                if (gradingResults == null || gradingResults.Count == 0)
+                {
+                    _logger.LogWarning("Review blocked: no grading results for submission {SubmissionId}", submissionId);
+                    return new CodeReviewResult
+                    {
+                        ReviewAllowed = false,
+                        AssignmentId = assignmentId,
+                        SubmissionId = submissionId,
+                        Error = "GRADING_REQUIRED: Submission has not been graded yet. Please run grading before AI review."
+                    };
+                }
+
+                // 2) Extract code from submission ZIP
                 string extractedCode = await ExtractCodeFromSubmissionAsync(submissionId);
                 
                 if (string.IsNullOrEmpty(extractedCode))
@@ -344,12 +374,30 @@ namespace Business_Logic.Services.AI
 
                 _logger.LogInformation($"Extracted code length: {extractedCode.Length}");
 
+                // 3) Prepare testCases and actuals payloads for AI
+                var testCases = await _context.TestCases
+                    .Where(tc => tc.AssignmentId == assignmentId)
+                    .Select(tc => new { input = tc.Input, expectedOutput = tc.ExpectedOutput })
+                    .ToListAsync();
+
+                var actuals = gradingResults
+                    .Select(r => new
+                    {
+                        input = r.TestCase?.Input ?? string.Empty,
+                        expectedOutput = r.TestCase?.ExpectedOutput ?? string.Empty,
+                        actualOutput = r.ActualOutput ?? string.Empty,
+                        passed = (bool)r.IsPassed
+                    })
+                    .ToList();
+
                 // Gọi RAG service để review code
                 var reviewRequest = new
                 {
                     assignmentId = assignmentId.ToString(),
                     submissionId = submissionId.ToString(),
-                    extractedCode
+                    extractedCode,
+                    testCases,
+                    actuals
                 };
 
                 var jsonContent = JsonSerializer.Serialize(reviewRequest);
