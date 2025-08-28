@@ -153,26 +153,29 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.AI
 
                 var result = await _aiService.ReviewCodeAsync(request.AssignmentId, request.SubmissionId);
 
-                if (result.ReviewAllowed)
+                if (!result.ReviewAllowed)
                 {
-                    return Ok(ApiResponse<object>.SuccessResponse(
-                        new
-                        {
-                            assignmentId = result.AssignmentId,
-                            submissionId = result.SubmissionId,
-                            review = result.Review,
-                            hasErrors = result.HasErrors,
-                            errorCount = result.ErrorCount,
-                            summary = result.Summary,
-                            rawResponse = result.RawResponse
-                        },
-                        "Code review completed successfully"
-                    ));
-                }
-                else
-                {
+                    // Map GRADING_REQUIRED to 409 Conflict for clear UX
+                    if (!string.IsNullOrEmpty(result.Error) && result.Error.StartsWith("GRADING_REQUIRED"))
+                    {
+                        return StatusCode(409, ApiResponse<object>.ErrorResponse(result.Error));
+                    }
                     return BadRequest(ApiResponse<object>.ErrorResponse(result.Error));
                 }
+
+                return Ok(ApiResponse<object>.SuccessResponse(
+                    new
+                    {
+                        assignmentId = result.AssignmentId,
+                        submissionId = result.SubmissionId,
+                        review = result.Review,
+                        hasErrors = result.HasErrors,
+                        errorCount = result.ErrorCount,
+                        summary = result.Summary,
+                        rawResponse = result.RawResponse
+                    },
+                    "Code review completed successfully"
+                ));
             }
             catch (Exception ex)
             {
