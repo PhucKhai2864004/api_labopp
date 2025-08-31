@@ -159,10 +159,20 @@ namespace Business_Logic.Services.AI
                     };
                 }
 
-                // Gọi RAG service để suggest test cases (chỉ cần assignmentId)
+                // Lấy test cases từ database (chỉ input + expected output cho sinh viên)
+                var existingTestCases = await _context.TestCases
+                    .Where(tc => tc.AssignmentId == assignmentId)
+                    .Select(tc => new { 
+                        Input = tc.Input, 
+                        ExpectedOutput = tc.ExpectedOutput 
+                    })
+                    .ToListAsync();
+
+                // Gọi RAG service để suggest test cases (cho sinh viên tự test)
                 var suggestionRequest = new
                 {
-                    assignmentId = assignmentId.ToString()
+                    assignmentId = assignmentId.ToString(),
+                    existingTestCases = existingTestCases
                 };
 
                 var jsonContent = JsonSerializer.Serialize(suggestionRequest);

@@ -391,6 +391,10 @@ async function similaritySearch(query, assignmentId, limit = 5) {
     }
 }
 
+
+
+
+
 // Review student code
 app.post('/review-code', async (req, res) => {
     try {
@@ -541,8 +545,7 @@ Notes:
         // Parse JSON strictly; if invalid, return 502 to caller
         let parsed;
         try {
-            parsed = JSON.parse(responseText);
-        } catch (parseError) {
+            parsed = JSON.parse(responseText);        } catch (parseError) {
             debugLog('Code review JSON parsing failed', { parseError: parseError.message, responsePreview: responseText.slice(0, 200) });
             return res.status(502).json({ 
                 success: false,
@@ -583,7 +586,7 @@ Notes:
 // Suggest test cases for assignment
 app.post('/suggest-testcases', async (req, res) => {
     try {
-        const { assignmentId, outputStyle, style, hints } = req.body;
+        const { assignmentId, outputStyle, style, hints, existingTestCases = [] } = req.body;
 
         debugLog('Test case suggestion request received', { assignmentId });
 
@@ -612,8 +615,14 @@ app.post('/suggest-testcases', async (req, res) => {
         const context = await similaritySearch('test case generation', assignmentId, 5);
         const contextText = context.map(c => c.text).join('\n\n');
 
-        // Auto-detect style from RAG context
-        const detectedStyle = detectAssignmentStyle(contextText);
+        // Get input/output examples from request body (from database)
+        debugLog('Getting input/output examples from request body', { assignmentId, examplesCount: existingTestCases.length });
+        const examplesText = existingTestCases.length > 0 ? 
+            `\n\nInput/Output Examples:\n${existingTestCases.map(ex => `Input: ${ex.Input}\nExpected: ${ex.ExpectedOutput}`).join('\n\n')}` : 
+            '';
+
+        // Auto-detect style from RAG context + examples
+        const detectedStyle = detectAssignmentStyle(contextText + examplesText);
         const effectiveStyle = (style || outputStyle || detectedStyle || 'default').toString();
 
         debugLog('Style detection', { 
@@ -623,8 +632,8 @@ app.post('/suggest-testcases', async (req, res) => {
             contextPreview: contextText.substring(0, 200) + '...'
         });
 
-        // Prepare prompt for test case generation
-        const baseIntro = `You are an expert programming instructor helping students create test cases.`;
+        // Prepare prompt for test case generation (for students to self-test)
+        const baseIntro = `You are an expert programming instructor helping students create test cases for self-testing their code before submission.`;
 
         const styles = {
             terminal_menu: `\nFocus on terminal menu interactions for management systems. Each test case must include step-by-step inputs a student performs in a console app.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "title": string,\n      "steps": [string],\n      "expectedOutput": string\n    }\n  ],\n  "suggestions": string\n}`,
@@ -641,14 +650,14 @@ app.post('/suggest-testcases', async (req, res) => {
         const prompt = `${baseIntro}
 
 Assignment Context:
-${contextText}
+${contextText}${examplesText}
 
 Detected Style: ${detectedStyle}
 Effective Style: ${effectiveStyle}
 ${styleBlock}
 ${hints ? `\nConstraints/Hints (as plain text for guidance): ${JSON.stringify(hints)}` : ''}
 
-General guidance:\n- Cover edge cases, boundary conditions, normal and error cases.\n- Keep fields as simple text.\n- No extra commentary, return the JSON object only.`;
+General guidance:\n- Use the input/output examples as reference for format and style\n- Generate test cases that students can use to verify their code works correctly\n- Cover edge cases, boundary conditions, normal and error cases\n- Focus on expected outputs (what the program should produce)\n- Keep fields as simple text\n- No extra commentary, return the JSON object only`;
 
         // Call Gemini API for test case generation
         const geminiApiKey = getGeminiApiKey();
