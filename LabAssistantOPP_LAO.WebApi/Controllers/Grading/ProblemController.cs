@@ -115,10 +115,10 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 
 			for (int i = 0; i < testCases.Count; i++)
 			{
-				if (descriptions != null && i < descriptions.Count)
-					testCases[i].Description = descriptions[i]; // 👈 set mô tả nhập tay
-				else
-					testCases[i].Description = $"Test case {i + 1}";
+				if (descriptions != null && i < descriptions.Count && !string.IsNullOrWhiteSpace(descriptions[i]))
+				{
+					testCases[i].Description = descriptions[i];
+				}
 
 				assignment.TestCases.Add(testCases[i]);
 			}
