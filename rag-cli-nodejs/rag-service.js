@@ -636,12 +636,12 @@ app.post('/suggest-testcases', async (req, res) => {
         const baseIntro = `You are an expert programming instructor helping students create test cases for self-testing their code before submission.`;
 
         const styles = {
-            terminal_menu: `\nFocus on terminal menu interactions for management systems. Each test case must include step-by-step inputs a student performs in a console app.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "title": string,\n      "steps": [string],\n      "expectedOutput": string\n    }\n  ],\n  "suggestions": string\n}`,
-                         algorithm_io: `\nThis is a basic algorithmic problem (Fibonacci, matrix operations, BMI calculation, arithmetic, date comparison, math calculations). Provide concise input/output cases.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "input": string,\n      "expectedOutput": string\n    }\n  ],\n  "suggestions": string\n}`,
-            sorting_array: `\nThis is a sorting problem (Bubble Sort, Selection Sort, etc.). Include edge cases: empty array, single element, already sorted, reverse sorted, duplicates.\nUse array literals as strings for input and expectedOutput (e.g., "[3,1,2]").\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "input": string,\n      "expectedOutput": string\n    }\n  ],\n  "suggestions": string\n}`,
+            terminal_menu: `\nFocus on terminal menu interactions for management systems. Each test case must include step-by-step inputs a student performs in a console app.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "title": string,\n      "description": string,\n      "steps": [string],\n      "expectedOutput": string\n    }\n  ],\n  "suggestions": string\n}`,
+                         algorithm_io: `\nThis is a basic algorithmic problem (Fibonacci, matrix operations, BMI calculation, arithmetic, date comparison, math calculations). Provide concise input/output cases.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "input": string,\n      "expectedOutput": string,\n      "description": string\n    }\n  ],\n  "suggestions": string\n}`,
+            sorting_array: `\nThis is a sorting problem (Bubble Sort, Selection Sort, etc.). Include edge cases: empty array, single element, already sorted, reverse sorted, duplicates.\nUse array literals as strings for input and expectedOutput (e.g., "[3,1,2]").\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "input": string,\n      "expectedOutput": string,\n      "description": string\n    }\n  ],\n  "suggestions": string\n}`,
             string_ops: `\nThis is a string processing problem. Cover empty string, whitespace, case sensitivity, special characters.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema as algorithm_io.`,
             data_structure: `\nThis is a data structure problem (Stack, Queue, simple structures). Test basic operations: push/pop, enqueue/dequeue, insert/delete.\nInclude edge cases: empty structure, single element.\nSchema as algorithm_io.`,
-            unit_api: `\nProduce unit-test-like cases.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "name": string,\n      "pre": string,\n      "input": string,\n      "expectedOutput": string\n    }\n  ],\n  "suggestions": string\n}`,
+            unit_api: `\nProduce unit-test-like cases.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "name": string,\n      "description": string,\n      "pre": string,\n      "input": string,\n      "expectedOutput": string\n    }\n  ],\n  "suggestions": string\n}`,
             default: `\nBased on the assignment requirements, suggest 5-10 test cases that would help verify the solution.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema as algorithm_io.`
         };
 
@@ -657,7 +657,7 @@ Effective Style: ${effectiveStyle}
 ${styleBlock}
 ${hints ? `\nConstraints/Hints (as plain text for guidance): ${JSON.stringify(hints)}` : ''}
 
-General guidance:\n- Use the input/output examples as reference for format and style\n- Generate test cases that students can use to verify their code works correctly\n- Cover edge cases, boundary conditions, normal and error cases\n- Focus on expected outputs (what the program should produce)\n- Keep fields as simple text\n- No extra commentary, return the JSON object only`;
+General guidance:\n- Use the input/output examples as reference for format and style\n- Generate test cases that students can use to verify their code works correctly\n- Cover edge cases, boundary conditions, normal and error cases\n- Focus on expected outputs (what the program should produce)\n- Keep fields as simple text\n- No extra commentary, return the JSON object only\n- IMPORTANT: For 'description' field, write detailed English descriptions based on the actual assignment context:\n  * Describe what the test case validates in the context of this specific assignment\n  * Use terminology and concepts from the assignment (e.g., if it's about employees, use "Add employee", "Update employee", etc.)\n  * Be specific about the scenario being tested (success case, error case, edge case, etc.)\n  * Examples: "Add new employee successfully", "Update employee with invalid ID", "Delete non-existent employee", "Search employee by empty criteria"\n- Make descriptions specific and clear about what the test case validates in the context of this assignment`;
 
         // Call Gemini API for test case generation
         const geminiApiKey = getGeminiApiKey();
@@ -708,7 +708,7 @@ General guidance:\n- Use the input/output examples as reference for format and s
         // Validate schema depending on style
         if (effectiveStyle === 'terminal_menu') {
             const ok = Array.isArray(parsed?.testCases) && parsed.testCases.every(tc =>
-                tc && typeof tc.title === 'string' && Array.isArray(tc.steps) && typeof tc.expectedOutput === 'string'
+                tc && typeof tc.title === 'string' && typeof tc.description === 'string' && Array.isArray(tc.steps) && typeof tc.expectedOutput === 'string'
             );
             if (!ok) {
                 debugLog('Test case validation failed (terminal_menu)', { parsed });
@@ -716,7 +716,7 @@ General guidance:\n- Use the input/output examples as reference for format and s
             }
         } else if (effectiveStyle === 'unit_api') {
             const ok = Array.isArray(parsed?.testCases) && parsed.testCases.every(tc =>
-                tc && typeof tc.name === 'string' && typeof tc.pre === 'string' && typeof tc.input === 'string' && typeof tc.expectedOutput === 'string'
+                tc && typeof tc.name === 'string' && typeof tc.description === 'string' && typeof tc.pre === 'string' && typeof tc.input === 'string' && typeof tc.expectedOutput === 'string'
             );
             if (!ok) {
                 debugLog('Test case validation failed (unit_api)', { parsed });
@@ -731,12 +731,18 @@ General guidance:\n- Use the input/output examples as reference for format and s
 
         debugLog('Test case validation successful', { testCasesCount: parsed.testCases?.length || 0 });
         
+        // Format expectedOutput for frontend display (replace \n with <br>)
+        const formattedTestCases = (parsed.testCases || []).map(tc => ({
+            ...tc,
+            expectedOutputFormatted: tc.expectedOutput ? tc.expectedOutput.replace(/\n/g, '<br>') : tc.expectedOutput
+        }));
+        
         res.json({
             success: true,
             assignmentId: assignmentId,
             detectedStyle: detectedStyle,
             effectiveStyle: effectiveStyle,
-            testCases: parsed.testCases || [],
+            testCases: formattedTestCases,
             suggestions: parsed.suggestions || "",
             rawResponse: responseText
         });
@@ -835,6 +841,7 @@ function validateTestCases(data) {
         if (!testCase || typeof testCase !== 'object') return false;
         if (!testCase.input || typeof testCase.input !== 'string') return false;
         if (!testCase.expectedOutput || typeof testCase.expectedOutput !== 'string') return false;
+        if (!testCase.description || typeof testCase.description !== 'string') return false;
     }
     
     return true;
