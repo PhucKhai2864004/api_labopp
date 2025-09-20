@@ -615,10 +615,20 @@ app.post('/suggest-testcases', async (req, res) => {
         const context = await similaritySearch('test case generation', assignmentId, 5);
         const contextText = context.map(c => c.text).join('\n\n');
 
+        // Extract test cases from RAG context (from assignment PDF)
+        const extractedTestCases = extractTestCasesFromContext(contextText);
+        debugLog('Extracted test cases from RAG context', { assignmentId, extractedCount: extractedTestCases.length });
+        
         // Get input/output examples from request body (from database)
         debugLog('Getting input/output examples from request body', { assignmentId, examplesCount: existingTestCases.length });
         const examplesText = existingTestCases.length > 0 ? 
-            `\n\nInput/Output Examples:\n${existingTestCases.map(ex => `Input: ${ex.Input}\nExpected: ${ex.ExpectedOutput}`).join('\n\n')}` : 
+            `\n\nInput/Output Examples (from database):\n${existingTestCases.map(ex => `Input: ${ex.Input}\nExpected: ${ex.ExpectedOutput}`).join('\n\n')}` : 
+            '';
+            
+        // Combine extracted test cases from PDF with database examples
+        const allTestCases = [...extractedTestCases, ...existingTestCases];
+        const testCasesText = allTestCases.length > 0 ? 
+            `\n\nAvailable Test Cases Reference:\n${allTestCases.map((tc, i) => `${i+1}. ${tc.name || tc.description || 'Test Case'}: ${tc.description || tc.ExpectedOutput || ''}`).join('\n')}` : 
             '';
 
         // Auto-detect style from RAG context + examples
@@ -636,9 +646,9 @@ app.post('/suggest-testcases', async (req, res) => {
         const baseIntro = `You are an expert programming instructor helping students create test cases for self-testing their code before submission.`;
 
         const styles = {
-            terminal_menu: `\nFocus on terminal menu interactions for management systems. Each test case must include step-by-step inputs a student performs in a console app.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "title": string,\n      "description": string,\n      "steps": [string],\n      "expectedOutput": string\n    }\n  ],\n  "suggestions": string\n}`,
-                         algorithm_io: `\nThis is a basic algorithmic problem (Fibonacci, matrix operations, BMI calculation, arithmetic, date comparison, math calculations). Provide concise input/output cases.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "input": string,\n      "expectedOutput": string,\n      "description": string\n    }\n  ],\n  "suggestions": string\n}`,
-            sorting_array: `\nThis is a sorting problem (Bubble Sort, Selection Sort, etc.). Include edge cases: empty array, single element, already sorted, reverse sorted, duplicates.\nUse array literals as strings for input and expectedOutput (e.g., "[3,1,2]").\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "input": string,\n      "expectedOutput": string,\n      "description": string\n    }\n  ],\n  "suggestions": string\n}`,
+            terminal_menu: `\nFocus on terminal menu interactions for management systems. Each test case must include step-by-step inputs a student performs in a console app.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "name": string,\n      "description": string,\n      "steps": [string],\n      "expectedOutput": string\n    }\n  ],\n  "suggestions": string\n}`,
+                         algorithm_io: `\nThis is a basic algorithmic problem (Fibonacci, matrix operations, BMI calculation, arithmetic, date comparison, math calculations). Provide concise input/output cases.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "name": string,\n      "input": string,\n      "expectedOutput": string,\n      "description": string\n    }\n  ],\n  "suggestions": string\n}`,
+            sorting_array: `\nThis is a sorting problem (Bubble Sort, Selection Sort, etc.). Include edge cases: empty array, single element, already sorted, reverse sorted, duplicates.\nUse array literals as strings for input and expectedOutput (e.g., "[3,1,2]").\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "name": string,\n      "input": string,\n      "expectedOutput": string,\n      "description": string\n    }\n  ],\n  "suggestions": string\n}`,
             string_ops: `\nThis is a string processing problem. Cover empty string, whitespace, case sensitivity, special characters.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema as algorithm_io.`,
             data_structure: `\nThis is a data structure problem (Stack, Queue, simple structures). Test basic operations: push/pop, enqueue/dequeue, insert/delete.\nInclude edge cases: empty structure, single element.\nSchema as algorithm_io.`,
             unit_api: `\nProduce unit-test-like cases.\nReturn ONLY valid JSON, no markdown/code fences.\nSchema:\n{\n  "testCases": [\n    {\n      "name": string,\n      "description": string,\n      "pre": string,\n      "input": string,\n      "expectedOutput": string\n    }\n  ],\n  "suggestions": string\n}`,
@@ -650,14 +660,14 @@ app.post('/suggest-testcases', async (req, res) => {
         const prompt = `${baseIntro}
 
 Assignment Context:
-${contextText}${examplesText}
+${contextText}${examplesText}${testCasesText}
 
 Detected Style: ${detectedStyle}
 Effective Style: ${effectiveStyle}
 ${styleBlock}
 ${hints ? `\nConstraints/Hints (as plain text for guidance): ${JSON.stringify(hints)}` : ''}
 
-General guidance:\n- Use the input/output examples as reference for format and style\n- Generate test cases that students can use to verify their code works correctly\n- Cover edge cases, boundary conditions, normal and error cases\n- Focus on expected outputs (what the program should produce)\n- Keep fields as simple text\n- No extra commentary, return the JSON object only\n- IMPORTANT: For 'description' field, write detailed English descriptions based on the actual assignment context:\n  * Describe what the test case validates in the context of this specific assignment\n  * Use terminology and concepts from the assignment (e.g., if it's about employees, use "Add employee", "Update employee", etc.)\n  * Be specific about the scenario being tested (success case, error case, edge case, etc.)\n  * Examples: "Add new employee successfully", "Update employee with invalid ID", "Delete non-existent employee", "Search employee by empty criteria"\n- Make descriptions specific and clear about what the test case validates in the context of this assignment`;
+General guidance:\n- PRIORITY: If "Available Test Cases Reference" is provided above, use those test cases as the PRIMARY source and generate test cases that match those descriptions\n- Use the input/output examples as reference for format and style\n- Generate test cases that students can use to verify their code works correctly\n- Cover edge cases, boundary conditions, normal and error cases\n- Focus on expected outputs (what the program should produce)\n- Keep fields as simple text\n- No extra commentary, return the JSON object only\n- IMPORTANT: For 'name' field, use short, clear test case names (e.g., "Add doctor", "Update doctor", "Delete doctor", "Search doctor")\n- IMPORTANT: For 'description' field, write detailed English descriptions based on the actual assignment context:\n  * Describe what the test case validates in the context of this specific assignment\n  * Use terminology and concepts from the assignment (e.g., if it's about employees, use "Add employee", "Update employee", etc.)\n  * Be specific about the scenario being tested (success case, error case, edge case, etc.)\n  * Examples: "Add new employee successfully", "Update employee with invalid ID", "Delete non-existent employee", "Search employee by empty criteria"\n- Make descriptions specific and clear about what the test case validates in the context of this assignment\n- ORDER test cases logically: basic operations first (Add, Create), then modifications (Update, Edit), then queries (Search, View), then deletions (Delete, Remove), finally edge cases and error handling\n- For management systems: Start with "Add [entity]", then "Update [entity]", then "Search [entity]", then "Delete [entity]", then error cases like "Add [entity] with existing code", "Update non-existent [entity]", etc.\n- If test cases from assignment PDF are provided, prioritize generating test cases that cover those specific scenarios mentioned in the assignment`;
 
         // Call Gemini API for test case generation
         const geminiApiKey = getGeminiApiKey();
@@ -708,7 +718,7 @@ General guidance:\n- Use the input/output examples as reference for format and s
         // Validate schema depending on style
         if (effectiveStyle === 'terminal_menu') {
             const ok = Array.isArray(parsed?.testCases) && parsed.testCases.every(tc =>
-                tc && typeof tc.title === 'string' && typeof tc.description === 'string' && Array.isArray(tc.steps) && typeof tc.expectedOutput === 'string'
+                tc && typeof tc.name === 'string' && typeof tc.description === 'string' && Array.isArray(tc.steps) && typeof tc.expectedOutput === 'string'
             );
             if (!ok) {
                 debugLog('Test case validation failed (terminal_menu)', { parsed });
@@ -723,8 +733,8 @@ General guidance:\n- Use the input/output examples as reference for format and s
                 return res.status(502).json({ success: false, error: 'Invalid test case schema (unit_api)', rawResponse: responseText });
             }
         } else {
-            if (!validateTestCases(parsed)) {
-                debugLog('Test case validation failed', { parsed });
+        if (!validateTestCases(parsed)) {
+            debugLog('Test case validation failed', { parsed });
                 return res.status(502).json({ success: false, error: 'Invalid test case schema', rawResponse: responseText });
             }
         }
@@ -839,12 +849,79 @@ function validateTestCases(data) {
     
     for (const testCase of data.testCases) {
         if (!testCase || typeof testCase !== 'object') return false;
+        if (!testCase.name || typeof testCase.name !== 'string') return false;
         if (!testCase.input || typeof testCase.input !== 'string') return false;
         if (!testCase.expectedOutput || typeof testCase.expectedOutput !== 'string') return false;
         if (!testCase.description || typeof testCase.description !== 'string') return false;
     }
     
     return true;
+}
+
+// Extract test cases from RAG context (from assignment PDF)
+function extractTestCasesFromContext(contextText) {
+    if (!contextText) return [];
+    
+    const testCases = [];
+    const lines = contextText.split('\n');
+    
+    // Look for test case patterns
+    let inTestCasesSection = false;
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        // Detect test cases section
+        if (line.toLowerCase().includes('test case') && line.toLowerCase().includes('description')) {
+            inTestCasesSection = true;
+            continue;
+        }
+        
+        // Stop if we hit another major section
+        if (inTestCasesSection && (line.toLowerCase().includes('requirement') || 
+                                  line.toLowerCase().includes('specification') ||
+                                  line.toLowerCase().includes('implementation') ||
+                                  line.toLowerCase().includes('note'))) {
+            break;
+        }
+        
+        // Parse test case lines
+        if (inTestCasesSection) {
+            // Pattern: ● TC1: Successfully add a new fruit
+            const tcMatch = line.match(/●\s*TC\d+:\s*(.+)/i);
+            if (tcMatch) {
+                const description = tcMatch[1].trim();
+                const tcNumber = line.match(/TC(\d+)/i)?.[1] || '';
+                
+                testCases.push({
+                    name: `TC${tcNumber}`,
+                    description: description,
+                    source: 'assignment_pdf'
+                });
+            }
+            
+            // Alternative pattern: TC1: Successfully add a new fruit
+            const altMatch = line.match(/TC\d+:\s*(.+)/i);
+            if (altMatch && !line.includes('●')) {
+                const description = altMatch[1].trim();
+                const tcNumber = line.match(/TC(\d+)/i)?.[1] || '';
+                
+                testCases.push({
+                    name: `TC${tcNumber}`,
+                    description: description,
+                    source: 'assignment_pdf'
+                });
+            }
+        }
+    }
+    
+    debugLog('Extracted test cases from context', { 
+        totalLines: lines.length, 
+        testCasesFound: testCases.length,
+        testCases: testCases.map(tc => `${tc.name}: ${tc.description}`)
+    });
+    
+    return testCases;
 }
 
 // Auto-detect assignment style from RAG context - Simplified for Java school assignments

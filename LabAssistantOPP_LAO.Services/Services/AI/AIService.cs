@@ -200,7 +200,7 @@ namespace Business_Logic.Services.AI
                     
                     // Try to parse as dynamic object first
                     var responseObj = JsonSerializer.Deserialize<JsonElement>(responseString);
-                    
+
                     var suggestionResult = new TestCaseSuggestionResult
                     {
                         Success = true,
