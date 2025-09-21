@@ -40,6 +40,166 @@ function getGeminiApiKey() {
     return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
 }
 
+// Simple request queue to throttle Gemini API calls
+class RequestQueue {
+    constructor(maxConcurrent = 2, delayBetweenRequests = 1000) {
+        this.maxConcurrent = maxConcurrent;
+        this.delayBetweenRequests = delayBetweenRequests;
+        this.running = 0;
+        this.queue = [];
+    }
+
+    async add(requestFn) {
+        return new Promise((resolve, reject) => {
+            this.queue.push({ requestFn, resolve, reject });
+            this.process();
+        });
+    }
+
+    async process() {
+        if (this.running >= this.maxConcurrent || this.queue.length === 0) {
+            return;
+        }
+
+        this.running++;
+        const { requestFn, resolve, reject } = this.queue.shift();
+
+        try {
+            const result = await requestFn();
+            resolve(result);
+        } catch (error) {
+            reject(error);
+        } finally {
+            this.running--;
+            
+            // Add delay between requests to avoid rate limiting
+            if (this.queue.length > 0) {
+                setTimeout(() => this.process(), this.delayBetweenRequests);
+            } else {
+                this.process(); // Process next request immediately if no delay needed
+            }
+        }
+    }
+}
+
+// Configuration from environment variables
+const GEMINI_MAX_CONCURRENT = parseInt(process.env.GEMINI_MAX_CONCURRENT) || 2;
+const GEMINI_DELAY_BETWEEN_REQUESTS = parseInt(process.env.GEMINI_DELAY_BETWEEN_REQUESTS) || 1000;
+const GEMINI_MAX_RETRIES = parseInt(process.env.GEMINI_MAX_RETRIES) || 3;
+const GEMINI_CACHE_TTL = parseInt(process.env.GEMINI_CACHE_TTL) || 5 * 60 * 1000; // 5 minutes
+
+// Global request queue for Gemini API calls
+const geminiQueue = new RequestQueue(GEMINI_MAX_CONCURRENT, GEMINI_DELAY_BETWEEN_REQUESTS);
+
+// Simple cache for Gemini responses (to avoid duplicate API calls)
+const responseCache = new Map();
+const CACHE_TTL = GEMINI_CACHE_TTL;
+
+// Generate cache key from request parameters
+function generateCacheKey(url, payload) {
+    const payloadStr = JSON.stringify(payload);
+    return `${url}:${Buffer.from(payloadStr).toString('base64')}`;
+}
+
+// Check if cache entry is still valid
+function isCacheValid(entry) {
+    return Date.now() - entry.timestamp < CACHE_TTL;
+}
+
+// Exponential backoff retry function for Gemini API with queue throttling and caching
+async function callGeminiWithRetry(url, payload, maxRetries = GEMINI_MAX_RETRIES) {
+    // Check cache first
+    const cacheKey = generateCacheKey(url, payload);
+    const cachedEntry = responseCache.get(cacheKey);
+    
+    if (cachedEntry && isCacheValid(cachedEntry)) {
+        debugLog('Returning cached Gemini response', { cacheKey, age: Date.now() - cachedEntry.timestamp });
+        return cachedEntry.response;
+    }
+    
+    return await geminiQueue.add(async () => {
+        let lastError;
+        
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                debugLog(`Gemini API attempt ${attempt + 1}/${maxRetries}`, { url, attempt });
+                
+                const response = await fetch(url, payload);
+                
+                // If successful, cache and return immediately
+                if (response.ok) {
+                    debugLog(`Gemini API success on attempt ${attempt + 1}`, { status: response.status });
+                    
+                    // Cache the successful response
+                    responseCache.set(cacheKey, {
+                        response: response,
+                        timestamp: Date.now()
+                    });
+                    
+                    // Clean up old cache entries periodically
+                    if (responseCache.size > 100) {
+                        const now = Date.now();
+                        for (const [key, entry] of responseCache.entries()) {
+                            if (now - entry.timestamp > CACHE_TTL) {
+                                responseCache.delete(key);
+                            }
+                        }
+                    }
+                    
+                    return response;
+                }
+                
+                // Handle 429 (rate limit) with exponential backoff
+                if (response.status === 429) {
+                    const retryAfter = response.headers.get('retry-after');
+                    const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : Math.pow(2, attempt) * 1000; // 1s, 2s, 4s, 8s...
+                    
+                    debugLog(`Gemini API rate limited (429), waiting ${waitTime}ms before retry`, { 
+                        attempt: attempt + 1, 
+                        maxRetries, 
+                        retryAfter,
+                        waitTime 
+                    });
+                    
+                    if (attempt < maxRetries - 1) {
+                        await new Promise(resolve => setTimeout(resolve, waitTime));
+                        continue;
+                    }
+                }
+                
+                // For other errors, don't retry
+                const errorText = await response.text();
+                debugLog(`Gemini API failed with non-retryable error`, { 
+                    status: response.status, 
+                    error: errorText,
+                    attempt: attempt + 1 
+                });
+                throw new Error(`Gemini API request failed: ${response.status} - ${errorText}`);
+                
+            } catch (error) {
+                lastError = error;
+                debugLog(`Gemini API attempt ${attempt + 1} failed`, { 
+                    error: error.message, 
+                    attempt: attempt + 1,
+                    maxRetries 
+                });
+                
+                // If this is the last attempt, throw the error
+                if (attempt === maxRetries - 1) {
+                    throw error;
+                }
+                
+                // Wait before retry (exponential backoff)
+                const waitTime = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s...
+                debugLog(`Waiting ${waitTime}ms before retry`, { attempt: attempt + 1, waitTime });
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+        }
+        
+        throw lastError;
+    });
+}
+
 // Initialize PDF extractor
 const pdfExtract = new PDFExtract();
 const options = {};
@@ -59,6 +219,21 @@ app.get('/health', (req, res) => {
         services: {
             qdrant: 'connected',
             ollama: 'available'
+        },
+        gemini: {
+            queue: {
+                running: geminiQueue.running,
+                pending: geminiQueue.queue.length,
+                maxConcurrent: GEMINI_MAX_CONCURRENT
+            },
+            cache: {
+                size: responseCache.size,
+                ttl: GEMINI_CACHE_TTL / 1000
+            },
+            config: {
+                maxRetries: GEMINI_MAX_RETRIES,
+                delayBetweenRequests: GEMINI_DELAY_BETWEEN_REQUESTS
+            }
         }
     });
 });
@@ -525,17 +700,17 @@ Notes:
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
         };
 
-        // Try v1 first, then fallback to v1beta on 404
-        let geminiResponse = await fetch(`${geminiBase}/v1/models/${geminiModel}:generateContent?key=${geminiApiKey}`, payload);
-        if (geminiResponse.status === 404) {
-            debugLog('Gemini v1 endpoint returned 404, retrying with v1beta', { model: geminiModel });
-            geminiResponse = await fetch(`${geminiBase}/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`, payload);
-        }
-
-        if (!geminiResponse.ok) {
-            const errorText = await geminiResponse.text();
-            debugLog('Gemini code review failed', { status: geminiResponse.status, error: errorText });
-            throw new Error(`Gemini API request failed: ${geminiResponse.status}`);
+        // Try v1 first with retry, then fallback to v1beta on 404
+        let geminiResponse;
+        try {
+            geminiResponse = await callGeminiWithRetry(`${geminiBase}/v1/models/${geminiModel}:generateContent?key=${geminiApiKey}`, payload);
+        } catch (error) {
+            if (error.message.includes('404')) {
+                debugLog('Gemini v1 endpoint returned 404, retrying with v1beta', { model: geminiModel });
+                geminiResponse = await callGeminiWithRetry(`${geminiBase}/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`, payload);
+            } else {
+                throw error;
+            }
         }
 
         const geminiData = await geminiResponse.json();
@@ -669,9 +844,12 @@ ${hints ? `\nConstraints/Hints (as plain text for guidance): ${JSON.stringify(hi
 
 General guidance:\n- PRIORITY: If "Available Test Cases Reference" is provided above, use those test cases as the PRIMARY source and generate test cases that match those descriptions\n- Use the input/output examples as reference for format and style\n- Generate test cases that students can use to verify their code works correctly\n- Cover edge cases, boundary conditions, normal and error cases\n- Focus on expected outputs (what the program should produce)\n- Keep fields as simple text\n- No extra commentary, return the JSON object only\n- IMPORTANT: For 'name' field, use short, clear test case names (e.g., "Add doctor", "Update doctor", "Delete doctor", "Search doctor")\n- IMPORTANT: For 'description' field, write detailed English descriptions based on the actual assignment context:\n  * Describe what the test case validates in the context of this specific assignment\n  * Use terminology and concepts from the assignment (e.g., if it's about employees, use "Add employee", "Update employee", etc.)\n  * Be specific about the scenario being tested (success case, error case, edge case, etc.)\n  * Examples: "Add new employee successfully", "Update employee with invalid ID", "Delete non-existent employee", "Search employee by empty criteria"\n- Make descriptions specific and clear about what the test case validates in the context of this assignment\n- ORDER test cases logically: basic operations first (Add, Create), then modifications (Update, Edit), then queries (Search, View), then deletions (Delete, Remove), finally edge cases and error handling\n- For management systems: Start with "Add [entity]", then "Update [entity]", then "Search [entity]", then "Delete [entity]", then error cases like "Add [entity] with existing code", "Update non-existent [entity]", etc.\n- If test cases from assignment PDF are provided, prioritize generating test cases that cover those specific scenarios mentioned in the assignment`;
 
-        // Call Gemini API for test case generation
+        // Call Gemini API for test case generation with retry
         const geminiApiKey = getGeminiApiKey();
-        const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+        const geminiModel = process.env.GENAI_MODEL || 'gemini-2.5-flash';
+        const geminiBase = process.env.GENAI_BASE || 'https://generativelanguage.googleapis.com';
+        
+        const payload = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -681,12 +859,19 @@ General guidance:\n- PRIORITY: If "Available Test Cases Reference" is provided a
                     }]
                 }]
             })
-        });
+        };
 
-        if (!geminiResponse.ok) {
-            const errorText = await geminiResponse.text();
-            debugLog('Gemini test case generation failed', { status: geminiResponse.status, error: errorText });
-            throw new Error(`Gemini API request failed: ${geminiResponse.status}`);
+        // Try v1 first with retry, then fallback to v1beta on 404
+        let geminiResponse;
+        try {
+            geminiResponse = await callGeminiWithRetry(`${geminiBase}/v1/models/${geminiModel}:generateContent?key=${geminiApiKey}`, payload);
+        } catch (error) {
+            if (error.message.includes('404')) {
+                debugLog('Gemini v1 endpoint returned 404, retrying with v1beta', { model: geminiModel });
+                geminiResponse = await callGeminiWithRetry(`${geminiBase}/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`, payload);
+            } else {
+                throw error;
+            }
         }
 
         const geminiData = await geminiResponse.json();
@@ -1182,9 +1367,15 @@ app.listen(port, () => {
     console.log(`🚀 RAG Service running on port ${port}`);
     console.log(`📖 Health check: http://localhost:${port}/health`);
     console.log(`📄 Ingest PDF: POST http://localhost:${port}/ingest`);
-    console.log(`🔍 Review code: POST http://localhost:${port}/review`);
-    console.log(`📦 Extract code: POST http://localhost:${port}/extract-code`);
+    console.log(`🔍 Review code: POST http://localhost:${port}/review-code`);
+    console.log(`🧪 Suggest test cases: POST http://localhost:${port}/suggest-testcases`);
     console.log(`🔍 Check assignment: GET http://localhost:${port}/check-assignment/:assignmentId`);
     console.log(`📋 Assignment info: GET http://localhost:${port}/assignment-info/:assignmentId`);
     console.log(`✅ Connected to existing Qdrant collection`);
+    console.log(`⚙️  Gemini API Configuration:`);
+    console.log(`   - Max concurrent requests: ${GEMINI_MAX_CONCURRENT}`);
+    console.log(`   - Delay between requests: ${GEMINI_DELAY_BETWEEN_REQUESTS}ms`);
+    console.log(`   - Max retries: ${GEMINI_MAX_RETRIES}`);
+    console.log(`   - Cache TTL: ${GEMINI_CACHE_TTL / 1000}s`);
+    console.log(`🔄 Rate limiting and caching enabled for Gemini API`);
 });

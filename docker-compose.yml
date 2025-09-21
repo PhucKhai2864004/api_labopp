@@ -124,6 +124,12 @@ services:
       # Rate Limiting
       - RATE_LIMIT_WINDOW=900000  # 15 minutes
       - RATE_LIMIT_MAX_REQUESTS=100
+
+      # Gemini API Rate Limiting & Caching
+      - GEMINI_MAX_CONCURRENT=2
+      - GEMINI_DELAY_BETWEEN_REQUESTS=1000
+      - GEMINI_MAX_RETRIES=3
+      - GEMINI_CACHE_TTL=300000  # 5 minutes
     volumes:
       - rag_uploads:/app/uploads
       - rag_logs:/app/logs
