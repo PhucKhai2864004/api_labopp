@@ -39,7 +39,7 @@ services:
       # AI Services
       - AIServices__RAGServiceUrl=http://rag-service:3001
       - AIServices__AIServiceUrl=http://localhost:3000
-      - AIServices__GeminiApiKey=AIzaSyDxFNK8N6Y9bkLkNwhoENVhq-gNHH3UrnY
+      - AIServices__GeminiApiKey=AIzaSyC3Rba5DCRWQUHM6DiBpuWc8sa6eN2Iz-c
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./wwwroot:/app/wwwroot
@@ -104,7 +104,7 @@ services:
       - OLLAMA_URL=http://ollama:11434
 
       # Google Gemini Configuration (unified to Gemini 2.5)
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-${GOOGLE_API_KEY:-AIzaSyDxFNK8N6Y9bkLkNwhoENVhq-gNHH3UrnY}}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-${GOOGLE_API_KEY:-AIzaSyC3Rba5DCRWQUHM6DiBpuWc8sa6eN2Iz-c}}
       - GENAI_MODEL=${GENAI_MODEL:-gemini-2.5-flash}
       - GENAI_MODEL_REVIEW=${GENAI_MODEL_REVIEW:-gemini-2.5-flash}
       - GENAI_BASE=https://generativelanguage.googleapis.com
@@ -126,10 +126,10 @@ services:
       - RATE_LIMIT_MAX_REQUESTS=100
 
       # Gemini API Rate Limiting & Caching
-      - GEMINI_MAX_CONCURRENT=2
-      - GEMINI_DELAY_BETWEEN_REQUESTS=1000
+      - GEMINI_MAX_CONCURRENT=1
+      - GEMINI_DELAY_BETWEEN_REQUESTS=2000
       - GEMINI_MAX_RETRIES=3
-      - GEMINI_CACHE_TTL=300000  # 5 minutes
+      - GEMINI_CACHE_TTL=1800000  # 30 minutes (tăng cache để giảm API calls)
     volumes:
       - rag_uploads:/app/uploads
       - rag_logs:/app/logs
