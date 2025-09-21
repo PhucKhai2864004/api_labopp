@@ -35,7 +35,7 @@ namespace Business_Logic.Services.AI
             _logger = logger;
             _ragServiceUrl = configuration["AIServices:RAGServiceUrl"] ?? "http://localhost:3001";
             _aiServiceUrl = configuration["AIServices:AIServiceUrl"] ?? "http://localhost:3000";
-            _geminiApiKey = configuration["AIServices:GeminiApiKey"] ?? "AIzaSyDxFNK8N6Y9bkLkNwhoENVhq-gNHH3UrnY";
+            _geminiApiKey = configuration["AIServices:GeminiApiKey"] ?? "AIzaSyBS8hjoz4IFozf3-aAerqAUFPzP5Z3qBVY";
             _context = context;
             
             // Set timeout to 120 seconds for RAG operations
