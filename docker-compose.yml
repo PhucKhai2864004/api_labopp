@@ -39,7 +39,7 @@ services:
       # AI Services
       - AIServices__RAGServiceUrl=http://rag-service:3001
       - AIServices__AIServiceUrl=http://localhost:3000
-      - AIServices__GeminiApiKey=AIzaSyC3Rba5DCRWQUHM6DiBpuWc8sa6eN2Iz-c
+      - AIServices__GeminiApiKey=AIzaSyBS8hjoz4IFozf3-aAerqAUFPzP5Z3qBVY
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./wwwroot:/app/wwwroot
@@ -104,7 +104,7 @@ services:
       - OLLAMA_URL=http://ollama:11434
 
       # Google Gemini Configuration (unified to Gemini 2.5)
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-${GOOGLE_API_KEY:-AIzaSyC3Rba5DCRWQUHM6DiBpuWc8sa6eN2Iz-c}}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-${GOOGLE_API_KEY:-AIzaSyBS8hjoz4IFozf3-aAerqAUFPzP5Z3qBVY}}
       - GENAI_MODEL=${GENAI_MODEL:-gemini-2.5-flash}
       - GENAI_MODEL_REVIEW=${GENAI_MODEL_REVIEW:-gemini-2.5-flash}
       - GENAI_BASE=https://generativelanguage.googleapis.com
