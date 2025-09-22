@@ -71,9 +71,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 
 
 
-		/// <summary>
-		/// Load Problem từ folder test case
-		/// </summary>
+		
 		[HttpPost("load-from-files")]
 		public async Task<IActionResult> LoadFromFiles(
 			[FromForm] int assignmentId,
@@ -125,6 +123,87 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 
 			await _context.SaveChangesAsync();
 			return Ok(ApiResponse<LabAssignment>.SuccessResponse(assignment, "Test cases uploaded successfully."));
+		}
+
+		/// <summary>
+		/// Cập nhật 1 test case bằng file input.txt và output.txt
+		/// </summary>
+		[HttpPut("testcase/{id:int}/update-from-files")]
+		public async Task<IActionResult> UpdateTestCaseFromFiles(
+			int id,
+			[FromForm] List<IFormFile> files,
+			[FromForm] string? description)
+		{
+			if (files == null || files.Count == 0)
+				return BadRequest(ApiResponse<object>.ErrorResponse("No files uploaded."));
+
+			var testCase = await _context.TestCases.FirstOrDefaultAsync(tc => tc.Id == id);
+
+			if (testCase == null)
+				return NotFound(ApiResponse<object>.ErrorResponse("Test case not found."));
+
+			var currentUserId = User.FindFirst("userId")?.Value;
+			int? updatedBy = int.TryParse(currentUserId, out var uid) ? uid : null;
+			var now = DateTime.UtcNow;
+
+			// Lưu file tạm
+			var tempFolder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+			Directory.CreateDirectory(tempFolder);
+
+			foreach (var file in files)
+			{
+				var filePath = Path.Combine(tempFolder, file.FileName);
+				using (var stream = new FileStream(filePath, FileMode.Create))
+				{
+					await file.CopyToAsync(stream);
+				}
+			}
+
+			// Giống LoadFromFiles nhưng chỉ lấy 1 cặp input/output
+			var loaded = TestCaseFileLoader.LoadTestCasesFromFolder(tempFolder, testCase.AssignmentId, updatedBy);
+
+			if (loaded.Count == 0)
+				return BadRequest(ApiResponse<object>.ErrorResponse("No valid input/output files found."));
+
+			var updatedCase = loaded.First(); // lấy cặp đầu tiên
+
+			// Ghi đè dữ liệu
+			testCase.Input = updatedCase.Input;
+			testCase.ExpectedOutput = updatedCase.ExpectedOutput;
+			if (!string.IsNullOrWhiteSpace(description))
+				testCase.Description = description;
+			testCase.UpdatedAt = now;
+			testCase.UpdatedBy = updatedBy;
+
+			await _context.SaveChangesAsync();
+
+			return Ok(ApiResponse<TestCase>.SuccessResponse(testCase, "Test case updated successfully from files."));
+		}
+
+
+		// ========== DELETE ==========
+		/// <summary>
+		/// Xóa 1 test case theo Id
+		/// </summary>
+		[HttpDelete("testcase/{id:int}")]
+		public async Task<IActionResult> DeleteTestCase(int id)
+		{
+			var testCase = await _context.TestCases
+				.Include(tc => tc.TestCaseResults) // load các result liên quan
+				.FirstOrDefaultAsync(tc => tc.Id == id);
+
+			if (testCase == null)
+				return NotFound(ApiResponse<object>.ErrorResponse("Test case not found."));
+
+			// Xóa result trước
+			_context.TestCaseResults.RemoveRange(testCase.TestCaseResults);
+
+			// Xóa test case
+			_context.TestCases.Remove(testCase);
+
+			await _context.SaveChangesAsync();
+
+			return Ok(ApiResponse<object>.SuccessResponse(null, "Test case deleted successfully."));
 		}
 
 
