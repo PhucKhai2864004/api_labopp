@@ -6,9 +6,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace LabAssistantOPP_LAO.WebApi.Controllers.Head_subject
+namespace LabAssistantOPP_LAO.WebApi.Controllers.Admin
 {
-	[Authorize(Roles = "Head Subject")]
+	[Authorize(Roles = "Admin")]
 	[ApiController]
 	[Route("api/fap-sync")]
 	public class FAPController : ControllerBase
