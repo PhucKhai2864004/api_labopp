@@ -14,4 +14,12 @@
 		public int? Loc { get; set; }
 	}
 
+	public class UpdateTestCaseDto
+	{
+		public string Input { get; set; }
+		public string ExpectedOutput { get; set; }
+		public string? Description { get; set; }
+		public int? Loc { get; set; }
+	}
+
 }
