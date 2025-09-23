@@ -306,6 +306,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Student
 
 
 		[HttpGet("download-submission/{submissionId}")]
+		[AllowAnonymous]
 		public async Task<IActionResult> DownloadSubmission(int submissionId)
 		{
 			var sla = await _context.StudentLabAssignments.FindAsync(submissionId);
