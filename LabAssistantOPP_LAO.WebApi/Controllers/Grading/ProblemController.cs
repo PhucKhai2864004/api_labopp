@@ -217,7 +217,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 			var testCase = await _context.TestCases.FirstOrDefaultAsync(tc => tc.Id == id);
 
 			if (testCase == null)
-				return NotFound(ApiResponse<object>.ErrorResponse("Test case not found."));
+				return Ok(ApiResponse<TestCase>.SuccessResponse(null));
 
 			return Ok(ApiResponse<TestCase>.SuccessResponse(testCase));
 		}
@@ -232,9 +232,7 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 				.Where(tc => tc.AssignmentId == assignmentId)
 				.ToListAsync();
 
-			if (!testCases.Any())
-				return NotFound(ApiResponse<object>.ErrorResponse("No test cases found for this assignment."));
-
+			// Nếu không có test case thì trả về list rỗng
 			return Ok(ApiResponse<List<TestCase>>.SuccessResponse(testCases));
 		}
 	}
