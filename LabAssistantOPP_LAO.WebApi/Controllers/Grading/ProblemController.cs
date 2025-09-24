@@ -39,12 +39,12 @@ namespace LabAssistantOPP_LAO.WebApi.Controllers.Grading
 
 			var now = DateTime.UtcNow;
 
-			if (!string.IsNullOrWhiteSpace(dto.Title))
-			{
-				assignment.Title = dto.Title;
-				assignment.UpdatedAt = now;
-				assignment.UpdatedBy = currentUserId;
-			}
+			//if (!string.IsNullOrWhiteSpace(dto.Title))
+			//{
+			//	assignment.Title = dto.Title;
+			//	assignment.UpdatedAt = now;
+			//	assignment.UpdatedBy = currentUserId;
+			//}
 
 			var newTestCases = dto.TestCases.Select(t => new TestCase
 			{
