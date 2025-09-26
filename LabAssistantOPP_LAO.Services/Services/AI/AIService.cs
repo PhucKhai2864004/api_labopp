@@ -675,4 +675,3 @@ namespace Business_Logic.Services.AI
         #endregion
     }
 }
-
