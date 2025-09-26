@@ -114,7 +114,8 @@ async function callGeminiWithRetry(url, payload, maxRetries = GEMINI_MAX_RETRIES
     
     if (cachedEntry && isCacheValid(cachedEntry)) {
         debugLog('Returning cached Gemini response', { cacheKey, age: Date.now() - cachedEntry.timestamp });
-        return cachedEntry.response;
+        // Recreate a fresh Response from cached body to avoid consumed stream issues
+        return new Response(cachedEntry.body, { status: cachedEntry.status, headers: cachedEntry.headers });
     }
     
     return await geminiQueue.add(async () => {
@@ -129,10 +130,14 @@ async function callGeminiWithRetry(url, payload, maxRetries = GEMINI_MAX_RETRIES
                 // If successful, cache and return immediately
                 if (response.ok) {
                     debugLog(`Gemini API success on attempt ${attempt + 1}`, { status: response.status });
-                    
-                    // Cache the successful response
+                    // Read body once and cache body + meta; return fresh Response
+                    const bodyText = await response.text();
+                    const headersObj = {};
+                    response.headers.forEach((value, key) => { headersObj[key] = value; });
                     responseCache.set(cacheKey, {
-                        response: response,
+                        body: bodyText,
+                        status: response.status,
+                        headers: headersObj,
                         timestamp: Date.now()
                     });
                     
@@ -146,7 +151,7 @@ async function callGeminiWithRetry(url, payload, maxRetries = GEMINI_MAX_RETRIES
                         }
                     }
                     
-                    return response;
+                    return new Response(bodyText, { status: response.status, headers: headersObj });
                 }
                 
                 // Handle 429 (rate limit) with exponential backoff
@@ -418,6 +423,14 @@ app.post('/ingest', upload.single('pdfFile'), async (req, res) => {
                 source: 'pdf_ingestion'
             }
         }));
+        // Overwrite mode: delete existing points for this assignment before upserting new ones
+        await qdrantClient.delete('assignments', {
+            filter: {
+                must: [
+                    { key: 'assignmentId', match: { value: assignmentIdStr } }
+                ]
+            }
+        });
 
         await qdrantClient.upsert('assignments', {
             points: points
@@ -538,13 +551,14 @@ async function similaritySearch(query, assignmentId, limit = 5) {
         const embeddingData = await embeddingResponse.json();
         const queryEmbedding = embeddingData.embedding;
         debugLog('Query embedding generated', { embeddingLength: queryEmbedding.length });
+        const assignmentIdStr = assignmentId.toString();
 
         // Search in Qdrant
         const searchResponse = await qdrantClient.search('assignments', {
             vector: queryEmbedding,
             filter: {
                 must: [
-                    { key: 'assignmentId', match: { value: assignmentId } }
+                    { key: 'assignmentId', match: { value: assignmentIdStr } }
                 ]
             },
             limit: limit
